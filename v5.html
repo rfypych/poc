@@ -38,6 +38,8 @@
 <h3>[15] trx history + familyAccountMemberIds:[own userId] (IDOR self-test)</h3><pre id="p-15" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-15')">copy [15]</button>
 
 <button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button onclick="goSubV6()" style="background:#005;border-color:#00f">OPEN v6.html VIA callSubApp (deep-dive battery)</button>
+<script>function goSubV6(){AlipayJSBridge.call('callSubApp',{url:'https://rfypych.github.io/poc/v6.html'},function(r){var e=document.getElementById('p-16');if(e){e.textContent='v6 nav: '+JSON.stringify(r);e.className='ok';}})}</script>
 
 <script>
 (function(){
