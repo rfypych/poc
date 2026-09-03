@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px}
+  h3{color:#ff0;margin:14px 0 4px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  #status{position:fixed;top:0;left:0;right:0;background:#000;padding:4px 8px;border-bottom:1px solid #333;z-index:9}
+</style>
+</head>
+<body>
+<div id="status">waiting AlipayJSBridgeReady...</div>
+<h3>[1] Bridge presence</h3><pre id="p-bridge" class="pending">pending</pre>
+<h3>[2] getPhoneNumber</h3><pre id="p-phone" class="pending">pending</pre>
+<h3>[3] getUsername</h3><pre id="p-user" class="pending">pending</pre>
+<h3>[4] getAppToken</h3><pre id="p-token" class="pending">pending</pre>
+<h3>[5] getUserInfoData</h3><pre id="p-info" class="pending">pending</pre>
+<h3>[6] getTransactionHistory</h3><pre id="p-hist" class="pending">pending</pre>
+<h3>[7] getNativeData</h3><pre id="p-native" class="pending">pending</pre>
+<h3>[8] getSecuredKey</h3><pre id="p-key" class="pending">pending</pre>
+<h3>[9] generateNativeSignedToken</h3><pre id="p-signed" class="pending">pending</pre>
+<h3>[10] URL / environment</h3><pre id="p-env" class="pending">pending</pre>
+
+<script>
+(function(){
+  var log = function(id, obj){
+    var el = document.getElementById(id);
+    el.className = 'ok';
+    try { el.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 1); }
+    catch(e){ el.textContent = String(obj); }
+  };
+  var err = function(id, e){
+    var el = document.getElementById(id);
+    el.className = 'err';
+    el.textContent = 'ERROR: ' + (e && e.message ? e.message : String(e));
+  };
+
+  log('p-env', {href: location.href, ua: navigator.userAgent});
+
+  function call(fn, param, cb){
+    try {
+      window.AlipayJSBridge.call(fn, param || {}, function(r){
+        cb(null, r);
+      });
+    } catch(e){ cb(e); }
+  }
+
+  function runTests(){
+    document.getElementById('status').textContent = 'bridge ready - running tests';
+    log('p-bridge', {
+      hasAlipayJSBridge: !!window.AlipayJSBridge,
+      hasJSBridge: !!window.JSBridge,
+      startupParams: (window.AlipayJSBridge && window.AlipayJSBridge.startupParams) || null
+    });
+
+    call('getPhoneNumber', null, function(e, r){ e ? err('p-phone', e) : log('p-phone', r); });
+    call('getUsername', null, function(e, r){ e ? err('p-user', e) : log('p-user', r); });
+    call('getAppToken', null, function(e, r){ e ? err('p-token', e) : log('p-token', r); });
+    call('getUserInfoData', null, function(e, r){ e ? err('p-info', e) : log('p-info', r); });
+    call('getTransactionHistory', {pageNum:1}, function(e, r){ e ? err('p-hist', e) : log('p-hist', r); });
+    call('getNativeData', null, function(e, r){ e ? err('p-native', e) : log('p-native', r); });
+    call('getSecuredKey', {projectCode:'TEST'}, function(e, r){ e ? err('p-key', e) : log('p-key', r); });
+    call('generateNativeSignedToken', {}, function(e, r){ e ? err('p-signed', e) : log('p-signed', r); });
+  }
+
+  if (window.AlipayJSBridge) { runTests(); }
+  document.addEventListener('AlipayJSBridgeReady', runTests, false);
+  // fallback also for JSBridgeReady event name
+  document.addEventListener('JSBridgeReady', runTests, false);
+})();
+</script>
+</body>
+</html>
