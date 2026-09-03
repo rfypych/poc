@@ -35,6 +35,8 @@
 <h3>[12] getUserInfoData {getUserInfo} late (cache-warm check)</h3><pre id="p-12" class="pending">pending</pre>
 
 <button onclick="goSub()">LAST STEP: OPEN p2batt.html VIA callSubApp</button>
+<button onclick="goSubV5()" style="background:#005;border-color:#00f">OPEN v5.html VIA callSubApp (escalation battery)</button>
+<script>function goSubV5(){AlipayJSBridge.call('callSubApp',{url:'https://rfypych.github.io/poc/v5.html'},function(r){var e=document.getElementById('p-13');e.textContent='v5 nav: '+JSON.stringify(r)})}</script>
 <h3>[13] callSubApp</h3><pre id="p-13" class="pending">tap the button above</pre>
 <button onclick="copyAll()">COPY ALL RESULTS</button>
 
