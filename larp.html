@@ -292,7 +292,7 @@
       await sleep(3000);
 
       status('P2/' + attempt + ' [4] mint KILL-CHAIN @github.io landing');
-      var s4 = await call('createShortLink', {url:'https://m.dana.id@rfypych.github.io/poc/landing-v15.html?src=v15chain'}, 20000);
+      var s4 = await call('createShortLink', {url:'https://m.dana.id@rfypych.github.io/poc/landing-larp.html?src=larp'}, 20000);
       set('p-4', s4);
       if (s4 && s4.shortUrl) lastShortChain = s4.shortUrl;
       await sleep(3000);
